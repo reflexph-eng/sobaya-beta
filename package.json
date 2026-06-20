@@ -1,6 +1,6 @@
 {
-  "name": "sobaya-patch-10-1-1-habillage-visuel",
-  "version": "0.10.1-visual",
+  "name": "sobaya-patch-10-1-5-beta-corrections",
+  "version": "0.10.1-5",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -24,6 +24,36 @@ export function expectedMonthlyPayment(contract?: Pick<Contract, "monthlyRent" |
   return (Number(contract.monthlyRent) || 0) + (Number(contract.charges) || 0);
 }
 
+
+export function countCoveredMonths(periodStart?: string, periodEnd?: string) {
+  if (!periodStart || !periodEnd) return 1;
+  const start = new Date(periodStart);
+  const end = new Date(periodEnd);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 1;
+  return Math.max(((end.getFullYear() - start.getFullYear()) * 12) + (end.getMonth() - start.getMonth()) + 1, 1);
+}
+
+export function expectedPaymentForPeriod(contract: Pick<Contract, "monthlyRent" | "charges"> | null | undefined, periodStart?: string, periodEnd?: string) {
+  return expectedMonthlyPayment(contract) * countCoveredMonths(periodStart, periodEnd);
+}
+
+export function formatCoveredPeriod(periodStart?: string, periodEnd?: string) {
+  const formatter = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
+  if (!periodStart && !periodEnd) return "Période non renseignée";
+  const start = periodStart ? new Date(periodStart) : null;
+  const end = periodEnd ? new Date(periodEnd) : null;
+  const validStart = start && !Number.isNaN(start.getTime());
+  const validEnd = end && !Number.isNaN(end.getTime());
+  if (validStart && validEnd) {
+    const startLabel = formatter.format(start);
+    const endLabel = formatter.format(end);
+    return startLabel === endLabel ? startLabel : `${startLabel} à ${endLabel}`;
+  }
+  if (validStart) return formatter.format(start);
+  if (validEnd) return formatter.format(end);
+  return "Période non renseignée";
+}
+
 export function computePaymentStatus(amount: number, expectedAmount: number): PaymentStatus {
   if (expectedAmount <= 0) return amount > 0 ? "completed" : "pending";
   if (amount <= 0) return "pending";

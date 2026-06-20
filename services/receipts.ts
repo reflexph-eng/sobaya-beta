@@ -12,6 +12,13 @@ export type PublicReceipt = {
   tenantName: string;
   propertyName: string;
   paymentDate: string;
+  periodStart?: string;
+  periodEnd?: string;
+  periodLabel?: string;
+  periodMonths?: number;
+  expectedAmount?: number;
+  remainingBalance?: number;
+  overpaidAmount?: number;
   amount: number;
   paymentMethod: string;
   reference: string;
@@ -57,6 +64,13 @@ export async function issueReceipt(organizationId: string, payment: Payment, act
     tenantName: payment.tenantName,
     propertyName: payment.propertyName,
     paymentDate: payment.paymentDate,
+    periodStart: payment.periodStart || payment.paymentDate,
+    periodEnd: payment.periodEnd || payment.paymentDate,
+    periodLabel: payment.periodLabel || "Période non renseignée",
+    periodMonths: payment.periodMonths || 1,
+    expectedAmount: Number(payment.expectedAmount) || Number(payment.amount) || 0,
+    remainingBalance: Number(payment.remainingBalance) || 0,
+    overpaidAmount: Number(payment.overpaidAmount) || 0,
     amount: Number(payment.amount) || 0,
     paymentMethod: payment.paymentMethod,
     reference: payment.reference || "",

@@ -1,13 +1,13 @@
 import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { getPermissionsForRole } from "@/lib/permissions";
-import type { Organization, OrganizationMember } from "@/types/organization";
+import type { Organization, OrganizationMember, OrganizationType, SubscriptionPlan } from "@/types/organization";
 
-export async function createStarterOrganization({ userId, name, email = "", displayName = "" }: { userId: string; name: string; email?: string; displayName?: string }) {
+export async function createStarterOrganization({ userId, name, email = "", displayName = "", type = "owner", subscriptionPlan = "starter" }: { userId: string; name: string; email?: string; displayName?: string; type?: OrganizationType; subscriptionPlan?: SubscriptionPlan }) {
   const organizationRef = await addDoc(collection(db, "organizations"), {
     name: name.trim(),
-    type: "owner",
-    subscriptionPlan: "starter",
+    type,
+    subscriptionPlan,
     subscriptionStatus: "trial",
     ownerId: userId,
     createdAt: serverTimestamp(),

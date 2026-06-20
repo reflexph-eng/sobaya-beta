@@ -1,12 +1,13 @@
-export type OrganizationType = "owner" | "agency" | "enterprise";
+export type OrganizationType = "owner" | "real_estate_agent" | "agency" | "enterprise";
 export type SubscriptionStatus = "trial" | "active" | "past_due" | "suspended" | "cancelled";
 export type OrganizationRole = "owner" | "admin" | "manager" | "agent" | "viewer";
+export type SubscriptionPlan = "starter" | "pro" | "agency" | "business";
 
 export type Organization = {
   id: string;
   name: string;
   type: OrganizationType;
-  subscriptionPlan: "starter" | "pro" | "business";
+  subscriptionPlan: SubscriptionPlan;
   subscriptionStatus: SubscriptionStatus;
   ownerId: string;
   createdAt?: unknown;

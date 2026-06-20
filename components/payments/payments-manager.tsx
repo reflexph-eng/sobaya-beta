@@ -187,8 +187,8 @@ export function PaymentsManager() {
                     <p className="font-medium">{payment.receiptNumber}</p>
                     <StatusBadge tone={payment.status === "completed" ? "success" : payment.status === "pending" ? "warning" : payment.status === "cancelled" ? "danger" : "neutral"}>{statusLabels[payment.status]}</StatusBadge>
                   </div>
-                  <p className="mt-1 text-sm text-sobaya-muted">{payment.paymentDate} · {payment.tenantName} · {payment.propertyName}</p>
-                  <p className="mt-2 text-sm text-sobaya-muted">{money(payment.amount)} · {methodLabels[payment.paymentMethod]} · réf. {payment.reference || "Non renseignée"}</p>
+                  <p className="mt-1 text-sm text-sobaya-muted">{payment.paymentDate} · période {payment.periodLabel || "non renseignée"} · {payment.tenantName} · {payment.propertyName}</p>
+                  <p className="mt-2 text-sm text-sobaya-muted">{money(payment.amount)} · attendu {money(Number(payment.expectedAmount) || payment.amount)} · {methodLabels[payment.paymentMethod]} · réf. {payment.reference || "Non renseignée"}</p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button variant="secondary" onClick={() => handleOpenReceipt(payment)}>

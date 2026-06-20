@@ -4,7 +4,7 @@ import { createActivityLog, type Actor } from "@/services/activity-logs";
 import { createNotification } from "@/services/notifications";
 import type { Contract } from "@/types/contract";
 import type { Payment, PaymentFormValues } from "@/types/payment";
-import { computePaymentStatus, expectedMonthlyPayment } from "@/services/business-rules";
+import { computePaymentStatus, expectedPaymentForPeriod, formatCoveredPeriod, countCoveredMonths } from "@/services/business-rules";
 
 function paymentsCollection(organizationId: string) {
   return collection(db, "organizations", organizationId, "payments");
@@ -34,6 +34,10 @@ function computeNextDueDate(current?: string) {
 
 function hydratePaymentPayload(values: PaymentFormValues, contracts: Contract[]) {
   const contract = contracts.find((item) => item.id === values.contractId);
+  const periodStart = values.periodStart || values.paymentDate;
+  const periodEnd = values.periodEnd || values.paymentDate;
+  const expectedAmount = expectedPaymentForPeriod(contract, periodStart, periodEnd);
+  const amount = Number(values.amount) || 0;
   return {
     contractId: values.contractId,
     contractNumber: contract?.contractNumber ?? "Contrat non renseigné",
@@ -42,24 +46,42 @@ function hydratePaymentPayload(values: PaymentFormValues, contracts: Contract[])
     propertyId: contract?.propertyId ?? "",
     propertyName: contract?.propertyName ?? "Bien non renseigné",
     paymentDate: values.paymentDate,
-    amount: Number(values.amount) || 0,
+    periodStart,
+    periodEnd,
+    periodLabel: formatCoveredPeriod(periodStart, periodEnd),
+    periodMonths: countCoveredMonths(periodStart, periodEnd),
+    expectedAmount,
+    remainingBalance: Math.max(expectedAmount - amount, 0),
+    overpaidAmount: Math.max(amount - expectedAmount, 0),
+    amount,
     paymentMethod: values.paymentMethod,
     reference: values.reference ?? "",
-    status: computePaymentStatus(Number(values.amount) || 0, expectedMonthlyPayment(contract)),
+    status: computePaymentStatus(amount, expectedAmount),
     notes: values.notes ?? ""
   };
 }
 
+function latestCoveredEndDate(contract: Contract, payments: Payment[]) {
+  const dates = payments
+    .filter((payment) => payment.contractId === contract.id && payment.isDeleted !== true && payment.status !== "cancelled")
+    .map((payment) => payment.periodEnd || payment.paymentDate)
+    .filter(Boolean)
+    .map((date) => new Date(date));
+  const validDates = dates.filter((date) => !Number.isNaN(date.getTime()));
+  if (validDates.length === 0) return contract.nextDueDate;
+  validDates.sort((a, b) => b.getTime() - a.getTime());
+  return validDates[0].toISOString().slice(0, 10);
+}
+
 async function refreshContractBalance(organizationId: string, contract: Contract | undefined, payments: Payment[]) {
   if (!contract) return;
-  const monthlyDue = (Number(contract.monthlyRent) || 0) + (Number(contract.charges) || 0);
-  const totalPaid = payments
-    .filter((payment) => payment.contractId === contract.id && payment.isDeleted !== true && payment.status !== "cancelled")
-    .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
-  const balance = Math.max(monthlyDue - totalPaid, 0);
+  const relatedPayments = payments.filter((payment) => payment.contractId === contract.id && payment.isDeleted !== true && payment.status !== "cancelled");
+  const lastPayment = relatedPayments[0];
+  const balance = Number(lastPayment?.remainingBalance ?? 0) || 0;
+  const latestEnd = latestCoveredEndDate(contract, relatedPayments);
   await updateDoc(contractRef(organizationId, contract.id), {
     balance,
-    nextDueDate: balance <= 0 ? computeNextDueDate(contract.nextDueDate) : contract.nextDueDate,
+    nextDueDate: balance <= 0 ? computeNextDueDate(latestEnd) : latestEnd,
     updatedAt: serverTimestamp()
   });
 }
@@ -99,7 +121,7 @@ export async function createPayment(organizationId: string, values: PaymentFormV
   const payments = await listPayments(organizationId);
   await refreshContractBalance(organizationId, contract, payments);
   await createActivityLog(organizationId, { action: "PAYMENT_CREATED", entityType: "payment", entityId: ref.id, entityLabel: receiptNumber, details: `${payload.tenantName} · ${payload.propertyName}`, ...actor });
-  await createNotification(organizationId, { type: payload.status === "partial" ? "payment_partial" : "payment_received", title: payload.status === "partial" ? "Paiement partiel enregistré" : "Paiement reçu", message: `${payload.tenantName} · ${payload.amount.toLocaleString("fr-FR")} FCFA pour ${payload.propertyName}.`, entityType: "payment", entityId: ref.id, entityLabel: receiptNumber, severity: payload.status === "partial" ? "warning" : "success" }, actor);
+  await createNotification(organizationId, { type: payload.status === "partial" ? "payment_partial" : "payment_received", title: payload.status === "partial" ? "Paiement partiel enregistré" : "Paiement reçu", message: `${payload.tenantName} · ${payload.amount.toLocaleString("fr-FR")} FCFA pour ${payload.propertyName} · période ${payload.periodLabel}.`, entityType: "payment", entityId: ref.id, entityLabel: receiptNumber, severity: payload.status === "partial" ? "warning" : "success" }, actor);
   return ref;
 }
 

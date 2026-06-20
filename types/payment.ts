@@ -11,6 +11,13 @@ export interface Payment {
   propertyId: string;
   propertyName: string;
   paymentDate: string;
+  periodStart: string;
+  periodEnd: string;
+  periodLabel?: string;
+  periodMonths?: number;
+  expectedAmount?: number;
+  remainingBalance?: number;
+  overpaidAmount?: number;
   amount: number;
   paymentMethod: PaymentMethod;
   reference: string;
@@ -29,4 +36,4 @@ export interface Payment {
   createdBy?: string | null;
 }
 
-export type PaymentFormValues = Pick<Payment, "contractId" | "paymentDate" | "amount" | "paymentMethod" | "reference" | "status" | "notes">;
+export type PaymentFormValues = Pick<Payment, "contractId" | "paymentDate" | "periodStart" | "periodEnd" | "amount" | "paymentMethod" | "reference" | "status" | "notes">;
