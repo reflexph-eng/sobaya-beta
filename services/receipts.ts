@@ -1,0 +1,101 @@
+import { doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { createActivityLog, type Actor } from "@/services/activity-logs";
+import type { Payment } from "@/types/payment";
+
+export type PublicReceipt = {
+  receiptNumber: string;
+  organizationId: string;
+  paymentId: string;
+  contractId: string;
+  contractNumber: string;
+  tenantName: string;
+  propertyName: string;
+  paymentDate: string;
+  amount: number;
+  paymentMethod: string;
+  reference: string;
+  status: string;
+  verificationCode: string;
+  issuedAt?: unknown;
+  issuedBy?: string | null;
+  receiptPdfUrl?: string;
+};
+
+function paymentRef(organizationId: string, paymentId: string) {
+  return doc(db, "organizations", organizationId, "payments", paymentId);
+}
+
+function publicReceiptRef(receiptNumber: string) {
+  return doc(db, "publicReceipts", receiptNumber);
+}
+
+function makeVerificationCode(receiptNumber: string, paymentId: string) {
+  const base = `${receiptNumber}-${paymentId}`;
+  let hash = 0;
+  for (let i = 0; i < base.length; i += 1) hash = ((hash << 5) - hash + base.charCodeAt(i)) | 0;
+  return `SBY-${Math.abs(hash).toString(36).toUpperCase().padStart(6, "0")}`;
+}
+
+export function buildReceiptUrl(receiptNumber: string) {
+  if (typeof window === "undefined") return `/receipt/${receiptNumber}`;
+  return `${window.location.origin}/receipt/${receiptNumber}`;
+}
+
+export async function issueReceipt(organizationId: string, payment: Payment, actor?: Actor) {
+  const verificationCode = payment.verificationCode || makeVerificationCode(payment.receiptNumber, payment.id);
+  const issuedAt = payment.receiptIssuedAt ?? serverTimestamp();
+  const issuedBy = payment.receiptIssuedBy ?? actor?.userId ?? null;
+  const receiptPdfUrl = buildReceiptUrl(payment.receiptNumber);
+
+  const publicPayload: PublicReceipt = {
+    receiptNumber: payment.receiptNumber,
+    organizationId,
+    paymentId: payment.id,
+    contractId: payment.contractId,
+    contractNumber: payment.contractNumber,
+    tenantName: payment.tenantName,
+    propertyName: payment.propertyName,
+    paymentDate: payment.paymentDate,
+    amount: Number(payment.amount) || 0,
+    paymentMethod: payment.paymentMethod,
+    reference: payment.reference || "",
+    status: payment.status,
+    verificationCode,
+    issuedAt,
+    issuedBy,
+    receiptPdfUrl
+  };
+
+  const paymentPayload: Partial<Payment> & { updatedAt: unknown } = {
+    verificationCode,
+    receiptPdfUrl,
+    updatedAt: serverTimestamp()
+  };
+
+  if (!payment.receiptIssuedAt) paymentPayload.receiptIssuedAt = issuedAt;
+  if (!payment.receiptIssuedBy) paymentPayload.receiptIssuedBy = issuedBy;
+
+  const batch = writeBatch(db);
+  batch.update(paymentRef(organizationId, payment.id), paymentPayload);
+  batch.set(publicReceiptRef(payment.receiptNumber), {
+    ...publicPayload,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  await batch.commit();
+
+  await createActivityLog(organizationId, {
+    action: "RECEIPT_ISSUED",
+    entityType: "payment",
+    entityId: payment.id,
+    entityLabel: payment.receiptNumber,
+    details: `${payment.tenantName} · ${payment.propertyName}`,
+    ...actor
+  });
+}
+
+export async function getPublicReceipt(receiptNumber: string): Promise<PublicReceipt | null> {
+  const snapshot = await getDoc(publicReceiptRef(receiptNumber));
+  if (!snapshot.exists()) return null;
+  return snapshot.data() as PublicReceipt;
+}

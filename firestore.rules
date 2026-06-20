@@ -1,0 +1,177 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isSuperAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().data.globalRole == 'super_admin';
+    }
+
+    function isOrgMember(orgId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.status == 'active';
+    }
+
+    function hasPermission(orgId, permission) {
+      return isOrgMember(orgId)
+        && permission in get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.permissions;
+    }
+
+    function validOrgCreate(orgId) {
+      return request.resource.data.organizationId == orgId;
+    }
+
+    function validOrgUpdate(orgId) {
+      return resource.data.organizationId == orgId
+        && request.resource.data.organizationId == orgId;
+    }
+
+    function canReadOrgData(orgId, permission) {
+      return isSuperAdmin() || hasPermission(orgId, permission);
+    }
+
+    function canCreateOrgData(orgId, permission) {
+      return (isSuperAdmin() || hasPermission(orgId, permission)) && validOrgCreate(orgId);
+    }
+
+    function canUpdateOrgData(orgId, permission) {
+      return (isSuperAdmin() || hasPermission(orgId, permission)) && validOrgUpdate(orgId);
+    }
+
+    match /users/{userId} {
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow read, update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    match /organizations/{orgId} {
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow read: if isSuperAdmin() || isOrgMember(orgId);
+      allow update: if isSuperAdmin() || hasPermission(orgId, 'settings.manage');
+      allow delete: if isSuperAdmin();
+
+      match /members/{memberId} {
+        allow read: if isSuperAdmin() || isOrgMember(orgId);
+        allow create: if isSuperAdmin()
+          || hasPermission(orgId, 'settings.manage')
+          || (signedIn()
+            && memberId == request.auth.uid
+            && get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId == request.auth.uid
+            && request.resource.data.role == 'owner'
+            && request.resource.data.status == 'active');
+        allow update, delete: if isSuperAdmin() || hasPermission(orgId, 'settings.manage');
+      }
+
+      match /properties/{docId} {
+        allow read: if canReadOrgData(orgId, 'properties.read');
+        allow create: if canCreateOrgData(orgId, 'properties.create');
+        allow update: if canUpdateOrgData(orgId, 'properties.update') || canUpdateOrgData(orgId, 'properties.delete') || canUpdateOrgData(orgId, 'archives.manage');
+        allow delete: if isSuperAdmin();
+      }
+
+      match /tenants/{docId} {
+        allow read: if canReadOrgData(orgId, 'tenants.read');
+        allow create: if canCreateOrgData(orgId, 'tenants.create');
+        allow update: if canUpdateOrgData(orgId, 'tenants.update') || canUpdateOrgData(orgId, 'archives.manage');
+        allow delete: if isSuperAdmin();
+      }
+
+      match /contracts/{docId} {
+        allow read: if canReadOrgData(orgId, 'contracts.read') || canReadOrgData(orgId, 'contracts.manage');
+        allow create: if canCreateOrgData(orgId, 'contracts.create') || canCreateOrgData(orgId, 'contracts.manage');
+        allow update: if canUpdateOrgData(orgId, 'contracts.update') || canUpdateOrgData(orgId, 'contracts.delete') || canUpdateOrgData(orgId, 'contracts.manage') || canUpdateOrgData(orgId, 'archives.manage');
+        allow delete: if isSuperAdmin();
+      }
+
+      match /payments/{docId} {
+        allow read: if canReadOrgData(orgId, 'payments.read') || canReadOrgData(orgId, 'payments.manage');
+        allow create: if canCreateOrgData(orgId, 'payments.create') || canCreateOrgData(orgId, 'payments.manage');
+        allow update: if canUpdateOrgData(orgId, 'payments.update') || canUpdateOrgData(orgId, 'payments.delete') || canUpdateOrgData(orgId, 'payments.manage') || canUpdateOrgData(orgId, 'archives.manage');
+        allow delete: if isSuperAdmin();
+      }
+
+      match /maintenanceTickets/{docId} {
+        allow read: if isSuperAdmin() || hasPermission(orgId, 'maintenance.manage');
+        allow create: if canCreateOrgData(orgId, 'maintenance.manage');
+        allow update: if canUpdateOrgData(orgId, 'maintenance.manage');
+        allow delete: if isSuperAdmin();
+      }
+
+
+      match /maintenanceLogs/{docId} {
+        allow read: if isSuperAdmin() || hasPermission(orgId, 'maintenance.manage');
+        allow create: if canCreateOrgData(orgId, 'maintenance.manage');
+        allow update, delete: if isSuperAdmin();
+      }
+
+
+
+      match /serviceProviders/{docId} {
+        allow read: if isSuperAdmin() || hasPermission(orgId, 'providers.view') || hasPermission(orgId, 'providers.manage') || hasPermission(orgId, 'maintenance.manage');
+        allow create: if ((isSuperAdmin() || hasPermission(orgId, 'providers.manage') || hasPermission(orgId, 'maintenance.manage')) && validOrgCreate(orgId));
+        allow update: if ((isSuperAdmin() || hasPermission(orgId, 'providers.manage') || hasPermission(orgId, 'maintenance.manage')) && validOrgUpdate(orgId));
+        allow delete: if isSuperAdmin();
+      }
+
+      match /maintenanceInterventions/{docId} {
+        allow read: if isSuperAdmin() || hasPermission(orgId, 'interventions.view') || hasPermission(orgId, 'interventions.manage') || hasPermission(orgId, 'maintenance.manage');
+        allow create: if ((isSuperAdmin() || hasPermission(orgId, 'interventions.manage') || hasPermission(orgId, 'maintenance.manage')) && validOrgCreate(orgId));
+        allow update: if ((isSuperAdmin() || hasPermission(orgId, 'interventions.manage') || hasPermission(orgId, 'maintenance.manage')) && validOrgUpdate(orgId));
+        allow delete: if isSuperAdmin();
+      }
+
+      match /documents/{docId} {
+        allow read: if isSuperAdmin() || hasPermission(orgId, 'documents.manage');
+        allow create: if canCreateOrgData(orgId, 'documents.manage');
+        allow update: if canUpdateOrgData(orgId, 'documents.manage');
+        allow delete: if isSuperAdmin();
+      }
+
+
+      match /notifications/{docId} {
+        allow read: if isSuperAdmin() || hasPermission(orgId, 'notifications.view') || hasPermission(orgId, 'notifications.manage') || isOrgMember(orgId);
+        allow create: if ((isSuperAdmin() || hasPermission(orgId, 'notifications.manage') || isOrgMember(orgId)) && validOrgCreate(orgId));
+        allow update: if ((isSuperAdmin() || hasPermission(orgId, 'notifications.manage') || isOrgMember(orgId)) && validOrgUpdate(orgId));
+        allow delete: if isSuperAdmin();
+      }
+
+      match /activityLogs/{docId} {
+        allow read: if isSuperAdmin() || isOrgMember(orgId);
+        allow create: if (isSuperAdmin() || isOrgMember(orgId)) && validOrgCreate(orgId);
+        allow update, delete: if false;
+      }
+    }
+
+
+    match /subscriptions/{organizationId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /publicReceipts/{receiptNumber} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.receiptNumber == receiptNumber
+        && request.resource.data.organizationId is string
+        && (isSuperAdmin() || isOrgMember(request.resource.data.organizationId));
+      allow update: if signedIn()
+        && resource.data.receiptNumber == receiptNumber
+        && request.resource.data.receiptNumber == receiptNumber
+        && resource.data.organizationId == request.resource.data.organizationId
+        && (isSuperAdmin() || isOrgMember(request.resource.data.organizationId));
+      allow delete: if isSuperAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
