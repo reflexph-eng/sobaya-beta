@@ -63,13 +63,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-white text-sobaya-ink">
-      <aside className="fixed bottom-0 left-0 right-0 z-20 border-t border-sobaya-border bg-white/95 backdrop-blur md:bottom-auto md:right-auto md:top-0 md:flex md:h-screen md:w-64 md:flex-col md:border-r md:border-t-0">
-        <div className="hidden px-6 py-6 md:block">
+      <aside className="fixed bottom-0 left-0 right-0 z-20 border-t border-sobaya-border bg-white/95 backdrop-blur lg:bottom-auto lg:right-auto lg:top-0 lg:flex lg:h-screen lg:w-64 lg:flex-col lg:border-r lg:border-t-0">
+        <div className="hidden px-6 py-6 lg:block">
           <BrandLogo priority />
           <p className="mt-3 text-xs text-sobaya-muted">{organization?.name ?? "Organisation"}</p>
           <p className="mt-3 inline-flex rounded-full border border-sobaya-border px-3 py-1 text-xs text-sobaya-muted">{member?.role ?? "membre"}</p>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-3 py-2 md:flex-1 md:flex-col md:gap-1 md:px-4">
+        <nav className="flex gap-1 overflow-x-auto px-3 py-2 lg:flex-1 lg:flex-col lg:gap-1 lg:px-4">
           {visibleNav.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -77,25 +77,27 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-label={item.label}
+                title={item.label}
                 className={cn(
-                  "flex min-w-fit items-center gap-2 rounded-xl px-3 py-3 text-sm transition",
+                  "flex min-w-[56px] items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm transition sm:min-w-fit lg:justify-start",
                   active ? "bg-sobaya-soft text-sobaya-ink" : "text-sobaya-muted hover:bg-sobaya-soft hover:text-sobaya-ink"
                 )}
               >
                 <Icon size={18} />
-                <span>{item.label}</span>{item.href === "/notifications" && unreadNotifications > 0 ? <span className="ml-auto rounded-full bg-sobaya-primary px-2 py-0.5 text-[10px] font-semibold text-white">{unreadNotifications}</span> : null}
+                <span className="hidden sm:inline">{item.label}</span>{item.href === "/notifications" && unreadNotifications > 0 ? <span className="ml-auto rounded-full bg-sobaya-primary px-2 py-0.5 text-[10px] font-semibold text-white">{unreadNotifications}</span> : null}
               </Link>
             );
           })}
         </nav>
-        <div className="hidden border-t border-sobaya-border p-4 md:block">
+        <div className="hidden border-t border-sobaya-border p-4 lg:block">
           <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm text-sobaya-muted transition hover:bg-sobaya-soft hover:text-sobaya-ink">
             <LogOut size={18} /> Déconnexion
           </button>
         </div>
       </aside>
-      <main className="pb-24 md:ml-64 md:pb-0">
-        <div className="mx-auto w-full max-w-6xl px-5 py-6 md:py-8">{children}</div>
+      <main className="pb-24 lg:ml-64 lg:pb-0">
+        <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-5 sm:py-6 lg:py-8">{children}</div>
       </main>
     </div>
   );

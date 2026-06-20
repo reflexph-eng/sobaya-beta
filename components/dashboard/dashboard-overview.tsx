@@ -160,10 +160,10 @@ export function DashboardOverview() {
   }, [properties, tenants, contracts, payments, tickets, interventions]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {loadError ? <Card className="border-red-100 bg-red-50 text-sm text-red-700">{loadError}</Card> : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Trésorerie du mois" value={money(stats.monthlyNet)} compact helper={`Revenus ${money(stats.monthlyRevenue)} - maintenance ${money(stats.monthlyMaintenanceCost)}`} />
         <MetricCard label="Revenus annuels" value={money(stats.annualRevenue)} compact helper={`Net annuel : ${money(stats.annualNet)}`} />
         <MetricCard label="Taux d'occupation" value={`${stats.occupancyRate}%`} helper={`${stats.activeProperties.length} bien(s) actifs`} />
@@ -184,7 +184,7 @@ export function DashboardOverview() {
             <ButtonLink href="/paiements" className="w-full sm:w-fit">Encaisser</ButtonLink>
           </div>
         </div>
-        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-white bg-white p-4">
             <div className="mb-3 flex items-center justify-between"><p className="font-medium">Occupation</p><p className="text-sm text-sobaya-muted">Vacance {stats.vacancyRate}%</p></div>
             <ProgressBar value={stats.occupancyRate} />
@@ -203,14 +203,14 @@ export function DashboardOverview() {
         </div>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Biens actifs" value={stats.activeProperties.length} helper="Hors biens archivés" />
         <MetricCard label="Locataires actifs" value={stats.activeTenants} helper="Fiches locataires actives" />
         <MetricCard label="Coût maintenance" value={money(stats.annualMaintenanceCost)} compact helper="Coût annuel enregistré" />
         <MetricCard label="Quittances" value={stats.issuedReceipts} helper="Quittances générées" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="mb-4 flex items-center gap-2"><PieChart className="text-sobaya-primary" size={20} /><p className="text-lg font-medium">Rentabilité par bien</p></div>
           <div className="grid gap-3">
@@ -224,7 +224,7 @@ export function DashboardOverview() {
                   </div>
                   <StatusBadge tone={row.net >= 0 ? "success" : "danger"}>Net {money(row.net)}</StatusBadge>
                 </div>
-                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+                <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
                   <p>Encaissements : <span className="font-medium">{money(row.collected)}</span></p>
                   <p>Maintenance : <span className="font-medium">{money(row.maintenance)}</span></p>
                   <p>Statut : <span className="font-medium">{row.property.status}</span></p>
@@ -251,7 +251,7 @@ export function DashboardOverview() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
         <Card>
           <div className="flex items-start gap-3"><Home className="mt-1 text-sobaya-primary" size={20} /><div><p className="text-lg font-medium">Patrimoine</p><p className="mt-2 text-sm leading-6 text-sobaya-muted">Organisation : <span className="text-sobaya-ink">{organization?.name}</span>. Rôle : <span className="text-sobaya-ink">{member?.role}</span>.</p></div></div>
           <div className="mt-4"><ButtonLink href="/biens">Gérer les biens</ButtonLink></div>
