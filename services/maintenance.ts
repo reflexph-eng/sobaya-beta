@@ -1,9 +1,11 @@
 import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { db, storage } from "@/lib/firebase/client";
 import { createActivityLog, type Actor } from "@/services/activity-logs";
 import { createNotification } from "@/services/notifications";
 import type { Property } from "@/types/property";
 import type { Tenant } from "@/types/tenant";
+import type { GalleryPhoto } from "@/types/gallery";
 import type { MaintenanceLog, MaintenanceLogFormValues, MaintenanceTicket, MaintenanceTicketFormValues } from "@/types/maintenance";
 
 function ticketsCollection(organizationId: string) {
@@ -58,6 +60,7 @@ export async function createMaintenanceTicket(organizationId: string, values: Ma
   const ref = await addDoc(ticketsCollection(organizationId), {
     ...payload,
     organizationId,
+    photos: [],
     isDeleted: false,
     deletedAt: null,
     deletedBy: null,
@@ -103,4 +106,53 @@ export async function addMaintenanceLog(organizationId: string, ticketId: string
   });
   await createActivityLog(organizationId, { action: "MAINTENANCE_LOG_ADDED", entityType: "maintenance", entityId: ticketId, entityLabel: ticketTitle, details: values.message, ...actor });
   return ref;
+}
+
+const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5 Mo
+/** Pas de limite stricte type "6 photos" comme pour les biens : un incident peut nécessiter plus de clichés (avant/après, plusieurs angles). On garde un plafond raisonnable pour éviter les abus de stockage. */
+const MAX_INCIDENT_PHOTOS = 10;
+
+export async function addMaintenanceTicketPhoto(organizationId: string, ticket: Pick<MaintenanceTicket, "id" | "title" | "photos">, file: File, actor?: Actor): Promise<GalleryPhoto> {
+  const existing = ticket.photos ?? [];
+  if (existing.length >= MAX_INCIDENT_PHOTOS) {
+    throw new Error(`Maximum ${MAX_INCIDENT_PHOTOS} photos par ticket.`);
+  }
+  if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+    throw new Error("Format non supporté. Utilisez une image JPEG, PNG ou WebP.");
+  }
+  if (file.size > MAX_PHOTO_SIZE_BYTES) {
+    throw new Error("Image trop volumineuse (5 Mo maximum).");
+  }
+
+  const photoId = crypto.randomUUID();
+  const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const storagePath = `organizations/${organizationId}/maintenanceTickets/${ticket.id}/${photoId}.${extension}`;
+  const storageRef = ref(storage, storagePath);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  const url = await getDownloadURL(storageRef);
+
+  const photo: GalleryPhoto = { id: photoId, url, storagePath, uploadedAt: new Date() };
+  const photos = [...existing, photo];
+
+  await updateDoc(ticketRef(organizationId, ticket.id), { photos, updatedBy: actor?.userId ?? null, updatedAt: serverTimestamp() });
+  await createActivityLog(organizationId, { action: "MAINTENANCE_TICKET_UPDATED", entityType: "maintenance", entityId: ticket.id, entityLabel: ticket.title, details: "Photo d'incident ajoutée", ...actor });
+
+  return photo;
+}
+
+export async function removeMaintenanceTicketPhoto(organizationId: string, ticket: Pick<MaintenanceTicket, "id" | "title" | "photos">, photoId: string, actor?: Actor) {
+  const existing = ticket.photos ?? [];
+  const target = existing.find((p) => p.id === photoId);
+  if (!target) return;
+
+  try {
+    await deleteObject(ref(storage, target.storagePath));
+  } catch {
+    // Le fichier peut déjà avoir été supprimé côté Storage ; on continue pour nettoyer Firestore.
+  }
+
+  const photos = existing.filter((p) => p.id !== photoId);
+  await updateDoc(ticketRef(organizationId, ticket.id), { photos, updatedBy: actor?.userId ?? null, updatedAt: serverTimestamp() });
+  await createActivityLog(organizationId, { action: "MAINTENANCE_TICKET_UPDATED", entityType: "maintenance", entityId: ticket.id, entityLabel: ticket.title, details: "Photo d'incident supprimée", ...actor });
 }

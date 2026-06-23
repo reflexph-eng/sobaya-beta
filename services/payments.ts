@@ -32,12 +32,21 @@ function computeNextDueDate(current?: string) {
   return base.toISOString().slice(0, 10);
 }
 
+function computeAgencyCommission(amount: number, contract?: Contract) {
+  const feeType = contract?.managementFeeType ?? "none";
+  const feeValue = Number(contract?.managementFeeValue || 0);
+  if (feeType === "percentage") return Math.max(Math.round((amount * feeValue) / 100), 0);
+  if (feeType === "fixed") return Math.min(Math.max(feeValue, 0), amount);
+  return 0;
+}
+
 function hydratePaymentPayload(values: PaymentFormValues, contracts: Contract[]) {
   const contract = contracts.find((item) => item.id === values.contractId);
   const periodStart = values.periodStart || values.paymentDate;
   const periodEnd = values.periodEnd || values.paymentDate;
   const expectedAmount = expectedPaymentForPeriod(contract, periodStart, periodEnd);
   const amount = Number(values.amount) || 0;
+  const agencyCommissionAmount = computeAgencyCommission(amount, contract);
   return {
     contractId: values.contractId,
     contractNumber: contract?.contractNumber ?? "Contrat non renseigné",
@@ -45,6 +54,10 @@ function hydratePaymentPayload(values: PaymentFormValues, contracts: Contract[])
     tenantName: contract?.tenantName ?? "Locataire non renseigné",
     propertyId: contract?.propertyId ?? "",
     propertyName: contract?.propertyName ?? "Bien non renseigné",
+    ownerMandateId: contract?.ownerMandateId ?? "",
+    ownerName: contract?.ownerName ?? "",
+    agencyCommissionAmount,
+    ownerNetAmount: Math.max(amount - agencyCommissionAmount, 0),
     paymentDate: values.paymentDate,
     periodStart,
     periodEnd,

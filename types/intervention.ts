@@ -1,4 +1,16 @@
 export type MaintenanceInterventionStatus = "planned" | "in_progress" | "completed" | "cancelled";
+export type QuoteStatus = "pending" | "accepted" | "rejected";
+
+export interface InterventionQuote {
+  amount: number;
+  status: QuoteStatus;
+  /** URL du fichier PDF du devis, uploadé dans Firebase Storage (optionnel). */
+  fileUrl?: string | null;
+  storagePath?: string | null;
+  sentAt?: string | null;
+  respondedAt?: string | null;
+  notes?: string | null;
+}
 
 export interface MaintenanceIntervention {
   id: string;
@@ -19,6 +31,8 @@ export interface MaintenanceIntervention {
   status: MaintenanceInterventionStatus;
   rating: number;
   ratingComment: string;
+  /** Sprint Phase 4 — devis associé à cette intervention. */
+  quote?: InterventionQuote | null;
   isDeleted?: boolean;
   deletedAt?: unknown;
   deletedBy?: string | null;

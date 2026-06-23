@@ -2,6 +2,34 @@ export type OrganizationType = "owner" | "real_estate_agent" | "agency" | "enter
 export type SubscriptionStatus = "trial" | "active" | "past_due" | "suspended" | "cancelled";
 export type OrganizationRole = "owner" | "admin" | "manager" | "agent" | "viewer";
 export type SubscriptionPlan = "starter" | "pro" | "agency" | "business";
+export type DashboardProfileKey = "owner" | "agent" | "agency" | "super_admin";
+export type DashboardWidgetKey =
+  | "cashflow"
+  | "annualRevenue"
+  | "occupancy"
+  | "arrears"
+  | "mandates"
+  | "entrustedProperties"
+  | "commissions"
+  | "payouts"
+  | "platformOrganization"
+  | "platformAccountType"
+  | "platformUsers"
+  | "platformModules"
+  | "profileCockpit"
+  | "propertySummary"
+  | "tenantSummary"
+  | "maintenanceCost"
+  | "receipts"
+  | "profitability"
+  | "priorityActions"
+  | "mandatePilot"
+  | "quickAccess";
+
+export type DashboardSettings = {
+  enabledWidgets?: Partial<Record<DashboardProfileKey, DashboardWidgetKey[]>>;
+  updatedAt?: unknown;
+};
 
 export type Organization = {
   id: string;
@@ -10,6 +38,7 @@ export type Organization = {
   subscriptionPlan: SubscriptionPlan;
   subscriptionStatus: SubscriptionStatus;
   ownerId: string;
+  dashboardSettings?: DashboardSettings;
   createdAt?: unknown;
   updatedAt?: unknown;
 };

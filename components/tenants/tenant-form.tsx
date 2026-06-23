@@ -51,6 +51,9 @@ export function TenantForm({ tenant, loading, onCancel, onSubmit }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="rounded-2xl border border-sobaya-border bg-sobaya-soft/40 px-4 py-3 text-sm text-sobaya-muted">
+        Numéro locataire : <span className="font-medium text-sobaya-ink">{tenant?.tenantNumber ?? "généré automatiquement à l’enregistrement"}</span>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         <FormField label="Nom complet" required>
           <Input placeholder="Ex : Kouassi Jean" required value={values.fullName} onChange={(e) => update("fullName", e.target.value)} />

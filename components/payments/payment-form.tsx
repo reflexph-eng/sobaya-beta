@@ -6,6 +6,7 @@ import { FormField } from "@/components/ui/form-field";
 import type { Contract } from "@/types/contract";
 import type { Payment, PaymentFormValues, PaymentMethod } from "@/types/payment";
 import { computePaymentBalance, computePaymentStatus, expectedMonthlyPayment, expectedPaymentForPeriod, formatCoveredPeriod, isActiveContract } from "@/services/business-rules";
+import { computeRentSituation } from "@/services/rent-arrears";
 
 const methods: { value: PaymentMethod; label: string }[] = [
   { value: "cash", label: "Espèces" },
@@ -44,9 +45,11 @@ const initialValues: PaymentFormValues = {
   notes: ""
 };
 
-export function PaymentForm({ payment, contracts, loading, onSubmit, onCancel }: {
+export function PaymentForm({ payment, contracts, payments = [], initialContractId, loading, onSubmit, onCancel }: {
   payment?: Payment | null;
   contracts: Contract[];
+  payments?: Payment[];
+  initialContractId?: string;
   loading?: boolean;
   onSubmit: (values: PaymentFormValues) => Promise<void> | void;
   onCancel?: () => void;
@@ -60,6 +63,7 @@ export function PaymentForm({ payment, contracts, loading, onSubmit, onCancel }:
   const periodLabel = formatCoveredPeriod(values.periodStart, values.periodEnd);
   const calculatedStatus = computePaymentStatus(Number(values.amount) || 0, expectedAmount);
   const balance = computePaymentBalance(Number(values.amount) || 0, expectedAmount);
+  const rentSituation = selectedContract ? computeRentSituation(selectedContract, payments.filter((item) => item.id !== payment?.id)) : null;
 
   useEffect(() => {
     if (payment) {
@@ -77,9 +81,10 @@ export function PaymentForm({ payment, contracts, loading, onSubmit, onCancel }:
         notes: payment.notes
       });
     } else {
-      const defaultContract = activeContracts[0] ?? contracts[0];
-      const start = monthStart();
-      const end = monthEnd();
+      const defaultContract = contracts.find((contract) => contract.id === initialContractId) ?? activeContracts[0] ?? contracts[0];
+      const situation = defaultContract ? computeRentSituation(defaultContract, payments) : null;
+      const start = situation?.nextPeriodStart ?? monthStart();
+      const end = situation?.nextPeriodEnd ?? monthEnd();
       const defaultExpectedAmount = expectedPaymentForPeriod(defaultContract, start, end);
       setValues({
         ...initialValues,
@@ -90,12 +95,18 @@ export function PaymentForm({ payment, contracts, loading, onSubmit, onCancel }:
         status: computePaymentStatus(defaultExpectedAmount, defaultExpectedAmount)
       });
     }
-  }, [payment, contracts, activeContracts]);
+  }, [payment, contracts, activeContracts, payments, initialContractId]);
 
   function recompute(next: Partial<PaymentFormValues>) {
     setValues((current) => {
       const merged = { ...current, ...next };
       const contract = contracts.find((item) => item.id === merged.contractId);
+      const situation = contract ? computeRentSituation(contract, payments.filter((item) => item.id !== payment?.id)) : null;
+      const shouldSuggestNextPeriod = Boolean(next.contractId);
+      if (shouldSuggestNextPeriod && situation) {
+        merged.periodStart = situation.nextPeriodStart;
+        merged.periodEnd = situation.nextPeriodEnd;
+      }
       const expected = expectedPaymentForPeriod(contract, merged.periodStart, merged.periodEnd);
       return { ...merged, amount: next.amount ?? expected, status: computePaymentStatus(Number(next.amount ?? expected) || 0, expected) };
     });
@@ -128,6 +139,7 @@ export function PaymentForm({ payment, contracts, loading, onSubmit, onCancel }:
 
       {selectedContract ? (
         <div className="rounded-xl border border-sobaya-border bg-sobaya-soft/50 px-4 py-3 text-sm text-sobaya-ink">
+          {rentSituation ? <p className="mb-1 font-medium">Prochaine période suggérée : {rentSituation.nextPeriodLabel}</p> : null}
           <p className="font-medium">Période couverte : {periodLabel}</p>
           <p className="mt-1 text-sobaya-muted">Mensualité : {money(monthlyAmount)} · Montant attendu sur la période : {money(expectedAmount)}</p>
           <p className="mt-1 text-sobaya-muted">Statut calculé : <span className="font-medium text-sobaya-ink">{calculatedStatus === "completed" ? "Payé" : calculatedStatus === "partial" ? "Paiement partiel" : "En attente"}</span>{balance.remaining > 0 ? ` · Solde restant : ${money(balance.remaining)}` : ""}{balance.overpaid > 0 ? ` · Trop-perçu : ${money(balance.overpaid)}` : ""}</p>

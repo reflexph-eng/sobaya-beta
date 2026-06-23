@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CreditCard, Edit3, FileText, Printer, Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -13,6 +14,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/constants/permissions";
 import { archivePayment, createPayment, listPayments, updatePayment } from "@/services/payments";
+import { computeRentSituations } from "@/services/rent-arrears";
 import { buildReceiptUrl, issueReceipt } from "@/services/receipts";
 import { listContracts } from "@/services/contracts";
 import type { Contract } from "@/types/contract";
@@ -39,6 +41,8 @@ function money(value: number) {
 }
 
 export function PaymentsManager() {
+  const searchParams = useSearchParams();
+  const initialContractId = searchParams.get("contractId") ?? undefined;
   const { firebaseUser, organization, member, profile } = useAuth();
   const permissions = member?.permissions ?? [];
   const isSuperAdmin = profile?.globalRole === "super_admin";
@@ -75,6 +79,13 @@ export function PaymentsManager() {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (initialContractId && contracts.length > 0) {
+      setEditing(null);
+      setShowForm(true);
+    }
+  }, [contracts.length, initialContractId]);
+
   const stats = useMemo(() => {
     const now = new Date();
     const month = now.getMonth();
@@ -86,9 +97,11 @@ export function PaymentsManager() {
       return date.getMonth() === month && date.getFullYear() === year;
     });
     const monthlyCollected = monthPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    const pendingContracts = contracts.filter((contract) => contract.status === "active" && Number(contract.balance || 0) > 0).length;
-    const lateContracts = contracts.filter((contract) => contract.status === "active" && contract.nextDueDate && new Date(contract.nextDueDate) < now && Number(contract.balance || 0) > 0).length;
-    return { collected, monthlyCollected, pendingContracts, lateContracts };
+    const rentSituations = computeRentSituations(contracts.filter((contract) => contract.status === "active"), validPayments, now);
+    const pendingContracts = rentSituations.filter((situation) => situation.totalDue > 0).length;
+    const lateContracts = rentSituations.filter((situation) => situation.status === "late" || situation.status === "partial").length;
+    const totalDue = rentSituations.reduce((sum, situation) => sum + situation.totalDue, 0);
+    return { collected, monthlyCollected, pendingContracts, lateContracts, totalDue };
   }, [payments, contracts]);
 
   async function handleSubmit(values: PaymentFormValues) {
@@ -142,7 +155,7 @@ export function PaymentsManager() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="Montant encaissé" value={money(stats.collected)} compact helper="Total hors paiements annulés" />
         <MetricCard label="Paiements du mois" value={money(stats.monthlyCollected)} compact helper="Encaissements mensuels" />
-        <MetricCard label="Impayés" value={stats.pendingContracts} helper="Contrats avec solde" />
+        <MetricCard label="Impayés" value={money(stats.totalDue)} compact helper={`${stats.pendingContracts} contrat(s) avec arriérés`} />
         <MetricCard label="Retards" value={stats.lateContracts} helper="Échéances dépassées" />
       </div>
 
@@ -163,7 +176,7 @@ export function PaymentsManager() {
 
         {showForm ? (
           <div className="mb-5 rounded-2xl border border-sobaya-border p-4">
-            <PaymentForm payment={editing} contracts={contracts} loading={saving} onCancel={() => { setShowForm(false); setEditing(null); }} onSubmit={handleSubmit} />
+            <PaymentForm payment={editing} contracts={contracts} payments={payments} initialContractId={initialContractId} loading={saving} onCancel={() => { setShowForm(false); setEditing(null); }} onSubmit={handleSubmit} />
           </div>
         ) : null}
 

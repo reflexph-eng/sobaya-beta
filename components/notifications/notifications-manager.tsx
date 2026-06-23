@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuth } from "@/components/providers/auth-provider";
 import { listContracts } from "@/services/contracts";
+import { listPayments } from "@/services/payments";
 import { generateContractReminderNotifications, listNotifications, markAllNotificationsAsRead, markNotificationAsRead } from "@/services/notifications";
 import type { SobayaNotification } from "@/types/notification";
 
@@ -80,9 +81,12 @@ export function NotificationsManager() {
     setGenerating(true);
     setError("");
     try {
-      const contracts = await listContracts(organization.id);
-      const existing = await listNotifications(organization.id);
-      await generateContractReminderNotifications(organization.id, contracts, existing, actor);
+      const [contracts, payments, existing] = await Promise.all([
+        listContracts(organization.id),
+        listPayments(organization.id),
+        listNotifications(organization.id)
+      ]);
+      await generateContractReminderNotifications(organization.id, contracts, payments, existing, actor);
       await refresh();
     } catch {
       setError("Impossible de générer les rappels automatiques.");

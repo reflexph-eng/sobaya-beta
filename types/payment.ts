@@ -10,6 +10,10 @@ export interface Payment {
   tenantName: string;
   propertyId: string;
   propertyName: string;
+  ownerMandateId?: string;
+  ownerName?: string;
+  agencyCommissionAmount?: number;
+  ownerNetAmount?: number;
   paymentDate: string;
   periodStart: string;
   periodEnd: string;

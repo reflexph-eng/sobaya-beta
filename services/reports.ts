@@ -2,6 +2,7 @@ import type { Contract } from "@/types/contract";
 import type { MaintenanceIntervention } from "@/types/intervention";
 import type { Payment } from "@/types/payment";
 import type { Property } from "@/types/property";
+import { computePropertySituation } from "@/services/property-situation";
 
 export type ReportPeriod = {
   startDate: string;
@@ -16,7 +17,7 @@ export type PropertyReportRow = {
   collected: number;
   maintenanceCost: number;
   netRevenue: number;
-  occupancy: "occupé" | "disponible" | "maintenance" | "archivé";
+  occupancy: "occupé" | "disponible" | "maintenance" | "retiré" | "archivé";
 };
 
 export type MonthlyReportRow = {
@@ -53,10 +54,12 @@ function monthLabel(key: string) {
   return new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
 }
 
-function propertyStatusLabel(status: string): PropertyReportRow["occupancy"] {
-  if (status === "occupied") return "occupé";
-  if (status === "maintenance") return "maintenance";
-  if (status === "archived") return "archivé";
+function propertySituationLabel(property: Property, contracts: Contract[]): PropertyReportRow["occupancy"] {
+  if (property.status === "archived") return "archivé";
+  const situation = computePropertySituation(property, contracts);
+  if (situation.dashboardBucket === "occupied") return "occupé";
+  if (situation.dashboardBucket === "maintenance") return "maintenance";
+  if (situation.dashboardBucket === "withdrawn") return "retiré";
   return "disponible";
 }
 
@@ -78,7 +81,7 @@ export function buildPropertyReport({ properties, contracts, payments, intervent
         collected,
         maintenanceCost,
         netRevenue: collected - maintenanceCost,
-        occupancy: propertyStatusLabel(property.status)
+        occupancy: propertySituationLabel(property, contracts)
       };
     })
     .sort((a, b) => b.collected - a.collected);

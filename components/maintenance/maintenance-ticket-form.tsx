@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField, SelectField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { MaintenanceTicketPhotos } from "@/components/maintenance/maintenance-ticket-photos";
 import type { Property } from "@/types/property";
 import type { Tenant } from "@/types/tenant";
 import type { MaintenancePriority, MaintenanceStatus, MaintenanceTicket, MaintenanceTicketFormValues } from "@/types/maintenance";
+import type { GalleryPhoto } from "@/types/gallery";
 import type { Contract } from "@/types/contract";
 import { findActiveContractForProperty, propertyLabel } from "@/services/business-rules";
 
@@ -48,6 +50,8 @@ export function MaintenanceTicketForm({
   tenants,
   contracts,
   loading,
+  organizationId,
+  actor,
   onCancel,
   onSubmit
 }: {
@@ -56,14 +60,18 @@ export function MaintenanceTicketForm({
   tenants: Tenant[];
   contracts: Contract[];
   loading?: boolean;
+  organizationId?: string;
+  actor?: { userId?: string; userName?: string };
   onCancel: () => void;
   onSubmit: (values: MaintenanceTicketFormValues) => Promise<void>;
 }) {
   const [values, setValues] = useState<MaintenanceTicketFormValues>(emptyValues);
+  const [photos, setPhotos] = useState<GalleryPhoto[]>(ticket?.photos ?? []);
   const activeContract = values.propertyId ? findActiveContractForProperty(contracts, values.propertyId) : undefined;
   const selectedTenant = tenants.find((tenant) => tenant.id === values.tenantId);
 
   useEffect(() => {
+    setPhotos(ticket?.photos ?? []);
     if (ticket) {
       setValues({
         title: ticket.title ?? "",
@@ -154,6 +162,21 @@ export function MaintenanceTicketForm({
       <FormField label="Notes internes">
         <textarea className="min-h-20 w-full rounded-xl border border-sobaya-border bg-white px-4 py-3 text-sm outline-none focus:border-sobaya-primary" value={values.notes} onChange={(event) => update("notes", event.target.value)} placeholder="Suivi interne, consignes, devis, observations..." />
       </FormField>
+
+      {ticket && organizationId ? (
+        <MaintenanceTicketPhotos
+          organizationId={organizationId}
+          ticket={{ id: ticket.id, title: values.title || ticket.title, photos }}
+          canEdit
+          actor={actor}
+          onChange={setPhotos}
+        />
+      ) : (
+        <p className="rounded-xl border border-dashed border-sobaya-border px-4 py-4 text-sm text-sobaya-muted">
+          Les photos pourront être ajoutées une fois le ticket créé. Enregistrez d&apos;abord le ticket, puis rouvrez-le pour ajouter des photos de l&apos;incident.
+        </p>
+      )}
+
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button>
         <Button type="submit" disabled={loading || !values.propertyId || !values.tenantId}>{loading ? "Enregistrement..." : ticket ? "Mettre à jour" : "Créer le ticket"}</Button>

@@ -68,7 +68,12 @@ export function computePaymentBalance(amount: number, expectedAmount: number) {
 }
 
 export function propertyLabel(property: Property, activeContract?: Contract) {
-  const state = activeContract ? `Occupé par ${activeContract.tenantName}` : property.status === "available" ? "Disponible" : property.status;
+  const blocked = property.operationalStatus === "maintenance" || property.status === "maintenance"
+    ? "Maintenance"
+    : property.availabilityStatus === "withdrawn"
+      ? "Retiré du marché"
+      : "Disponible";
+  const state = activeContract ? `Occupé par ${activeContract.tenantName}` : blocked;
   return `${property.name} — ${property.commune || property.city || "Localisation non renseignée"} — ${state}`;
 }
 

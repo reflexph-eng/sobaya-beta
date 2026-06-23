@@ -93,3 +93,26 @@ export async function archiveMaintenanceIntervention(organizationId: string, int
   await updateDoc(interventionRef(organizationId, intervention.id), { isDeleted: true, deletedAt: serverTimestamp(), deletedBy: actor?.userId ?? null, updatedBy: actor?.userId ?? null, updatedAt: serverTimestamp() });
   await createActivityLog(organizationId, { action: "INTERVENTION_ARCHIVED", entityType: "intervention", entityId: intervention.id, entityLabel: intervention.ticketTitle, ...actor });
 }
+
+/** Phase 4 — enregistrer ou mettre à jour le devis d'une intervention. */
+export async function saveInterventionQuote(
+  organizationId: string,
+  interventionId: string,
+  interventionTitle: string,
+  quote: import("@/types/intervention").InterventionQuote,
+  actor?: Actor
+) {
+  await updateDoc(interventionRef(organizationId, interventionId), {
+    quote,
+    updatedBy: actor?.userId ?? null,
+    updatedAt: serverTimestamp()
+  });
+  await createActivityLog(organizationId, {
+    action: "INTERVENTION_UPDATED",
+    entityType: "intervention",
+    entityId: interventionId,
+    entityLabel: interventionTitle,
+    details: `Devis ${quote.status === "accepted" ? "accepté" : quote.status === "rejected" ? "refusé" : "enregistré"} : ${quote.amount.toLocaleString("fr-FR")} FCFA`,
+    ...actor
+  });
+}

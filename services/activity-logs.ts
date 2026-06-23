@@ -3,17 +3,23 @@ import { db } from "@/lib/firebase/client";
 
 export type ActivityAction =
   | "PROPERTY_CREATED" | "PROPERTY_UPDATED" | "PROPERTY_ARCHIVED" | "PROPERTY_RESTORED"
+  | "OWNER_MANDATE_CREATED" | "OWNER_MANDATE_UPDATED" | "OWNER_MANDATE_ARCHIVED"
   | "TENANT_CREATED" | "TENANT_UPDATED" | "TENANT_ARCHIVED" | "TENANT_RESTORED"
   | "CONTRACT_CREATED" | "CONTRACT_UPDATED" | "CONTRACT_ARCHIVED" | "CONTRACT_RESTORED"
+  | "BOOKING_CREATED" | "BOOKING_UPDATED" | "BOOKING_ARCHIVED"
+  | "DOCUMENT_UPLOADED" | "DOCUMENT_UPDATED" | "DOCUMENT_ARCHIVED"
+  | "LISTING_PUBLISHED" | "LISTING_UNPUBLISHED"
+  | "LISTING_FEATURE_REQUESTED" | "LISTING_FEATURE_APPROVED" | "LISTING_FEATURE_REJECTED"
   | "PAYMENT_CREATED" | "PAYMENT_UPDATED" | "PAYMENT_ARCHIVED" | "PAYMENT_RESTORED"
   | "RECEIPT_ISSUED"
   | "MAINTENANCE_TICKET_CREATED" | "MAINTENANCE_TICKET_UPDATED" | "MAINTENANCE_TICKET_ARCHIVED" | "MAINTENANCE_LOG_ADDED"
   | "PROVIDER_CREATED" | "PROVIDER_UPDATED" | "PROVIDER_ARCHIVED"
   | "INTERVENTION_CREATED" | "INTERVENTION_UPDATED" | "INTERVENTION_ARCHIVED"
   | "NOTIFICATION_CREATED"
+  | "TENANT_REMINDER_SENT"
   | "ORGANIZATION_UPDATED";
 
-export type ActivityEntityType = "property" | "tenant" | "contract" | "payment" | "maintenance" | "provider" | "intervention" | "notification" | "organization";
+export type ActivityEntityType = "ownerMandate" | "property" | "tenant" | "contract" | "booking" | "document" | "payment" | "maintenance" | "provider" | "intervention" | "notification" | "organization";
 
 export interface ActivityLog {
   id: string;

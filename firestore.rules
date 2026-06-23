@@ -15,6 +15,12 @@ service cloud.firestore {
         && userDoc().data.globalRole == 'super_admin';
     }
 
+    function isGlobalRole(role) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().data.globalRole == role;
+    }
+
     function isOrgMember(orgId) {
       return signedIn()
         && exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid))
@@ -49,8 +55,26 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow create: if signedIn() && request.auth.uid == userId;
-      allow read, update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      // Un utilisateur peut modifier son propre profil. Le super_admin peut tout modifier.
+      // Le platform_admin peut uniquement modifier le champ globalRole (délégation de rôles),
+      // mais ne peut pas s'attribuer le rôle super_admin à lui-même.
+      allow update: if signedIn() && (
+        request.auth.uid == userId
+        || isSuperAdmin()
+        || (
+          isGlobalRole("platform_admin")
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["globalRole"])
+          && request.resource.data.globalRole != "super_admin"
+        )
+      );
       allow delete: if isSuperAdmin();
+
+      match /consents/{consentId} {
+        allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+        allow create: if signedIn() && request.auth.uid == userId && request.resource.data.userId == userId;
+        allow update, delete: if false;
+      }
     }
 
     match /organizations/{orgId} {
@@ -89,6 +113,23 @@ service cloud.firestore {
         allow read: if canReadOrgData(orgId, 'contracts.read') || canReadOrgData(orgId, 'contracts.manage');
         allow create: if canCreateOrgData(orgId, 'contracts.create') || canCreateOrgData(orgId, 'contracts.manage');
         allow update: if canUpdateOrgData(orgId, 'contracts.update') || canUpdateOrgData(orgId, 'contracts.delete') || canUpdateOrgData(orgId, 'contracts.manage') || canUpdateOrgData(orgId, 'archives.manage');
+        allow delete: if isSuperAdmin();
+      }
+
+      match /bookings/{docId} {
+        allow read: if canReadOrgData(orgId, 'bookings.read') || canReadOrgData(orgId, 'bookings.manage');
+        allow create: if canCreateOrgData(orgId, 'bookings.create') || canCreateOrgData(orgId, 'bookings.manage')
+          // Sprint 11.2 — exception strictement limitée : un visiteur anonyme de la marketplace
+          // peut créer UNE demande de réservation, jamais autre chose. Le statut doit être "pending"
+          // (jamais confirmé directement par un visiteur non authentifié) et la source doit être
+          // marquée explicitement, pour distinguer ces demandes des réservations créées en back-office.
+          || (request.resource.data.organizationId == orgId
+              && request.resource.data.status == 'pending'
+              && request.resource.data.source == 'marketplace'
+              && request.resource.data.guestName is string
+              && request.resource.data.guestPhone is string
+              && request.resource.data.propertyId is string);
+        allow update: if canUpdateOrgData(orgId, 'bookings.update') || canUpdateOrgData(orgId, 'bookings.delete') || canUpdateOrgData(orgId, 'bookings.manage') || canUpdateOrgData(orgId, 'archives.manage');
         allow delete: if isSuperAdmin();
       }
 
@@ -136,6 +177,23 @@ service cloud.firestore {
         allow delete: if isSuperAdmin();
       }
 
+      // Sprint 10.4.0 — structure posée en avance, sans interface utilisable avant le Sprint 11.0 (marketplace).
+      match /listingReports/{docId} {
+        allow read: if isSuperAdmin() || hasPermission(orgId, 'settings.manage');
+        // Un signalement peut être créé par un visiteur non authentifié de la marketplace (Sprint 11.0) ;
+        // la validation stricte du contenu se fera à l'implémentation de cette fonctionnalité.
+        allow create: if true;
+        allow update: if isSuperAdmin() || hasPermission(orgId, 'settings.manage');
+        allow delete: if isSuperAdmin();
+      }
+
+      // Sprint 10.4.0 — structure posée en avance pour les badges de confiance (Phases 2/3).
+      // Attribution strictement réservée au super admin tant que l'automatisation n'existe pas.
+      match /badges/{docId} {
+        allow read: if true;
+        allow create, update, delete: if isSuperAdmin();
+      }
+
 
       match /notifications/{docId} {
         allow read: if isSuperAdmin() || hasPermission(orgId, 'notifications.view') || hasPermission(orgId, 'notifications.manage') || isOrgMember(orgId);
@@ -167,6 +225,44 @@ service cloud.firestore {
         && request.resource.data.receiptNumber == receiptNumber
         && resource.data.organizationId == request.resource.data.organizationId
         && (isSuperAdmin() || isOrgMember(request.resource.data.organizationId));
+      allow delete: if isSuperAdmin();
+    }
+
+    // Sprint Admin — configuration globale des modules.
+    match /platformConfig/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Sprint 11.3 — espaces publicitaires de la marketplace.
+    // Lecture publique totale (les visiteurs doivent voir les pubs).
+    // Écriture réservée au super admin uniquement.
+    match /adSpots/{slotId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /publicListings/{listingId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.organizationId is string
+        && (isSuperAdmin() || hasPermission(request.resource.data.organizationId, 'properties.update'));
+      // Seul le statut isActive et updatedAt peuvent changer après publication — pas de réécriture du contenu
+      // via cette règle simplifiée ; une vraie édition repasse par une nouvelle publication côté service.
+      allow update: if signedIn()
+        && resource.data.organizationId == request.resource.data.organizationId
+        && (isSuperAdmin() || hasPermission(resource.data.organizationId, 'properties.update'));
+      allow delete: if isSuperAdmin();
+    }
+
+    match /listingContactRequests/{requestId} {
+      // Un visiteur anonyme doit pouvoir envoyer une demande de contact sans être connecté.
+      allow create: if request.resource.data.organizationId is string
+        && request.resource.data.listingId is string
+        && request.resource.data.visitorName is string
+        && request.resource.data.visitorPhone is string;
+      allow read: if isSuperAdmin() || (signedIn() && hasPermission(resource.data.organizationId, 'properties.read'));
+      allow update: if isSuperAdmin() || (signedIn() && hasPermission(resource.data.organizationId, 'properties.update'));
       allow delete: if isSuperAdmin();
     }
 

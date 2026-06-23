@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="600">
+  <rect width="300" height="600" fill="#F0F4F8"/>
+  <rect x="1" y="1" width="298" height="598" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="150" y="290" text-anchor="middle" font-family="Arial" font-size="14" fill="#94A3B8">SOBAYA Ads</text>
+  <text x="150" y="312" text-anchor="middle" font-family="Arial" font-size="12" fill="#CBD5E1">Colonne droite — 300×600</text>
+</svg>

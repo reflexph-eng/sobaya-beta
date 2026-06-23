@@ -1,3 +1,5 @@
+import type { GalleryPhoto } from "@/types/gallery";
+
 export type MaintenancePriority = "low" | "medium" | "high" | "urgent";
 export type MaintenanceStatus = "open" | "assigned" | "in_progress" | "waiting" | "resolved" | "closed" | "cancelled";
 
@@ -18,6 +20,8 @@ export interface MaintenanceTicket {
   estimatedCost: number;
   finalCost: number;
   notes: string;
+  /** Sprint 10.3.7 — photos illustrant l'incident, uploadées vers Firebase Storage. */
+  photos?: GalleryPhoto[];
   isDeleted?: boolean;
   deletedAt?: unknown;
   deletedBy?: string | null;

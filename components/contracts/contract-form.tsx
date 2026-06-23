@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField, SelectField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import type { Contract, ContractFormValues, ContractStatus, PaymentMethod } from "@/types/contract";
+import type { Contract, ContractFormValues, ContractOnboardingMode, ContractStatus, PaymentMethod } from "@/types/contract";
 import type { Property } from "@/types/property";
 import type { Tenant } from "@/types/tenant";
 import { findActiveContractForProperty, propertyLabel } from "@/services/business-rules";
@@ -38,7 +38,15 @@ const emptyValues: ContractFormValues = {
   dueDay: 5,
   paymentMethod: "mobile_money",
   status: "draft",
-  notes: ""
+  notes: "",
+  onboardingMode: "new",
+  realContractStartDate: "",
+  migrationLastPaymentAmount: 0,
+  migrationLastPaidPeriodStart: "",
+  migrationLastPaidPeriodEnd: "",
+  migrationBalance: 0,
+  migrationDeposit: 0,
+  migrationAdvance: 0
 };
 
 export function ContractForm({
@@ -62,6 +70,7 @@ export function ContractForm({
 
   const activeContractForSelectedProperty = values.propertyId ? findActiveContractForProperty(contracts, values.propertyId, contract?.id) : undefined;
   const selectedProperty = properties.find((property) => property.id === values.propertyId);
+  const selectedPropertyBlocked = selectedProperty && values.status === "active" && !activeContractForSelectedProperty && (selectedProperty.availabilityStatus === "withdrawn" || selectedProperty.operationalStatus === "maintenance" || selectedProperty.status === "maintenance");
 
   useEffect(() => {
     if (contract) {
@@ -78,7 +87,15 @@ export function ContractForm({
         dueDay: contract.dueDay,
         paymentMethod: contract.paymentMethod,
         status: contract.status,
-        notes: contract.notes
+        notes: contract.notes,
+        onboardingMode: contract.onboardingMode ?? "new",
+        realContractStartDate: contract.realContractStartDate ?? contract.startDate,
+        migrationLastPaymentAmount: contract.migrationLastPaymentAmount ?? 0,
+        migrationLastPaidPeriodStart: contract.migrationLastPaidPeriodStart ?? "",
+        migrationLastPaidPeriodEnd: contract.migrationLastPaidPeriodEnd ?? "",
+        migrationBalance: contract.migrationBalance ?? 0,
+        migrationDeposit: contract.migrationDeposit ?? contract.deposit ?? 0,
+        migrationAdvance: contract.migrationAdvance ?? contract.advance ?? 0
       });
     } else {
       setValues(emptyValues);
@@ -92,12 +109,20 @@ export function ContractForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    if (!values.contractNumber || !values.propertyId || !values.tenantId || !values.startDate || !values.endDate) {
-      setError("Renseignez le numéro, le bien, le locataire et les dates du contrat.");
+    if (!values.propertyId || !values.tenantId || !values.startDate || !values.endDate) {
+      setError("Renseignez le bien, le locataire et les dates du contrat.");
+      return;
+    }
+    if (values.onboardingMode === "existing" && values.migrationLastPaidPeriodStart && values.migrationLastPaidPeriodEnd && new Date(values.migrationLastPaidPeriodEnd) < new Date(values.migrationLastPaidPeriodStart)) {
+      setError("La fin de la dernière période payée doit être postérieure ou égale au début.");
       return;
     }
     if (values.status === "active" && activeContractForSelectedProperty) {
       setError(`Ce bien est déjà occupé par ${activeContractForSelectedProperty.tenantName} via le contrat ${activeContractForSelectedProperty.contractNumber}.`);
+      return;
+    }
+    if (selectedPropertyBlocked) {
+      setError("Ce bien n'est pas louable actuellement : il est retiré du marché ou en maintenance. Modifiez d'abord sa disponibilité dans la fiche bien.");
       return;
     }
     setLoading(true);
@@ -108,7 +133,15 @@ export function ContractForm({
         charges: Number(values.charges),
         deposit: Number(values.deposit),
         advance: Number(values.advance),
-        dueDay: Number(values.dueDay)
+        dueDay: Number(values.dueDay),
+        onboardingMode: values.onboardingMode ?? "new",
+        realContractStartDate: values.onboardingMode === "existing" ? (values.realContractStartDate || values.startDate) : values.startDate,
+        migrationLastPaymentAmount: Number(values.migrationLastPaymentAmount || 0),
+        migrationLastPaidPeriodStart: values.migrationLastPaidPeriodStart || "",
+        migrationLastPaidPeriodEnd: values.migrationLastPaidPeriodEnd || "",
+        migrationBalance: Number(values.migrationBalance || 0),
+        migrationDeposit: Number(values.migrationDeposit || values.deposit || 0),
+        migrationAdvance: Number(values.migrationAdvance || values.advance || 0)
       });
       if (!contract) setValues(emptyValues);
     } catch (error) {
@@ -121,8 +154,8 @@ export function ContractForm({
   return (
     <form onSubmit={handleSubmit} className="grid gap-5">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormField label="Numéro du contrat" required help="Identifiant interne du contrat dans SOBAYA.">
-          <Input value={values.contractNumber} onChange={(event) => update("contractNumber", event.target.value)} placeholder="Ex : SOB-CTR-001" required />
+        <FormField label="Numéro du contrat" help="Généré automatiquement à la création. Vous pouvez le personnaliser uniquement en modification.">
+          <Input value={values.contractNumber} onChange={(event) => update("contractNumber", event.target.value)} placeholder={contract ? "Ex : SBY-CTR-0001" : "Automatique : SBY-CTR-0001"} disabled={!contract} />
         </FormField>
         <SelectField label="Statut du contrat" value={values.status} onChange={(value) => update("status", value as ContractStatus)}>
           {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -131,13 +164,14 @@ export function ContractForm({
           <option value="">Choisir un bien</option>
           {properties.map((property) => {
             const activeContract = findActiveContractForProperty(contracts, property.id, contract?.id);
-            const disabled = Boolean(activeContract && values.status === "active");
-            return <option key={property.id} value={property.id} disabled={disabled}>{propertyLabel(property, activeContract)}</option>;
+            const blocked = property.availabilityStatus === "withdrawn" || property.operationalStatus === "maintenance" || property.status === "maintenance";
+            const disabled = Boolean(values.status === "active" && (activeContract || blocked));
+            return <option key={property.id} value={property.id} disabled={disabled}>{propertyLabel(property, activeContract)}{blocked && !activeContract ? " · non louable" : ""}</option>;
           })}
         </SelectField>
         <SelectField label="Locataire concerné" required value={values.tenantId} onChange={(value) => update("tenantId", value)} help="Le contrat sera rattaché à ce locataire.">
           <option value="">Choisir un locataire</option>
-          {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.fullName} — {tenant.phone}</option>)}
+          {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.tenantNumber ? `${tenant.tenantNumber} — ` : ""}{tenant.fullName} — {tenant.phone}</option>)}
         </SelectField>
         <FormField label="Date de début du contrat" required>
           <Input type="date" value={values.startDate} onChange={(event) => update("startDate", event.target.value)} required />
@@ -163,6 +197,42 @@ export function ContractForm({
         <SelectField label="Mode de paiement préféré" value={values.paymentMethod} onChange={(value) => update("paymentMethod", value as PaymentMethod)}>
           {paymentOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </SelectField>
+      </div>
+
+      <div className="rounded-2xl border border-sobaya-border bg-sobaya-soft/40 p-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <SelectField label="Type de reprise" value={values.onboardingMode ?? "new"} onChange={(value) => update("onboardingMode", value as ContractOnboardingMode)} help="Pour un locataire déjà en place, SOBAYA reprend la situation à partir de la dernière période payée.">
+            <option value="new">Nouveau contrat SOBAYA</option>
+            <option value="existing">Contrat existant avant SOBAYA</option>
+          </SelectField>
+          {values.onboardingMode === "existing" ? (
+            <FormField label="Date réelle de début" help="Date à laquelle le contrat a réellement commencé, même avant SOBAYA.">
+              <Input type="date" value={values.realContractStartDate ?? ""} onChange={(event) => update("realContractStartDate", event.target.value)} />
+            </FormField>
+          ) : null}
+        </div>
+        {values.onboardingMode === "existing" ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <FormField label="Dernier paiement avant SOBAYA (FCFA)" help="Montant du dernier paiement connu avant la reprise dans SOBAYA.">
+              <Input type="number" min="0" value={values.migrationLastPaymentAmount ?? 0} onChange={(event) => update("migrationLastPaymentAmount", Number(event.target.value))} />
+            </FormField>
+            <FormField label="Solde initial restant dû (FCFA)" help="À renseigner si le locataire avait déjà une dette au moment de la reprise.">
+              <Input type="number" min="0" value={values.migrationBalance ?? 0} onChange={(event) => update("migrationBalance", Number(event.target.value))} />
+            </FormField>
+            <FormField label="Dernière période payée du" help="Début de la période couverte par le dernier paiement connu.">
+              <Input type="date" value={values.migrationLastPaidPeriodStart ?? ""} onChange={(event) => update("migrationLastPaidPeriodStart", event.target.value)} />
+            </FormField>
+            <FormField label="Au" help="Fin de la période couverte. SOBAYA suivra automatiquement le mois suivant.">
+              <Input type="date" value={values.migrationLastPaidPeriodEnd ?? ""} onChange={(event) => update("migrationLastPaidPeriodEnd", event.target.value)} />
+            </FormField>
+            <FormField label="Caution déjà reçue (FCFA)">
+              <Input type="number" min="0" value={values.migrationDeposit ?? values.deposit ?? 0} onChange={(event) => update("migrationDeposit", Number(event.target.value))} />
+            </FormField>
+            <FormField label="Avance déjà reçue (FCFA)">
+              <Input type="number" min="0" value={values.migrationAdvance ?? values.advance ?? 0} onChange={(event) => update("migrationAdvance", Number(event.target.value))} />
+            </FormField>
+          </div>
+        ) : null}
       </div>
       {activeContractForSelectedProperty ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Attention : {selectedProperty?.name ?? "ce bien"} est déjà lié au contrat actif {activeContractForSelectedProperty.contractNumber} avec {activeContractForSelectedProperty.tenantName}. Il faut archiver ou résilier ce contrat avant de créer un nouveau contrat actif sur le même bien.</p> : null}
       <FormField label="Observations" help="Conditions particulières, remarques, clauses ou informations utiles.">

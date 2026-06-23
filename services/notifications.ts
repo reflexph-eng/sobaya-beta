@@ -2,6 +2,8 @@ import { addDoc, collection, doc, getDocs, limit, orderBy, query, serverTimestam
 import { db } from "@/lib/firebase/client";
 import { createActivityLog, type Actor } from "@/services/activity-logs";
 import type { Contract } from "@/types/contract";
+import { computeRentSituations } from "@/services/rent-arrears";
+import type { Payment } from "@/types/payment";
 import type { SobayaNotification, NotificationPayload } from "@/types/notification";
 
 function notificationsCollection(organizationId: string) {
@@ -77,23 +79,27 @@ function daysBetween(start: Date, end: Date) {
   return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export async function generateContractReminderNotifications(organizationId: string, contracts: Contract[], existing: SobayaNotification[], actor?: Actor) {
+export async function generateContractReminderNotifications(organizationId: string, contracts: Contract[], payments: Payment[], existing: SobayaNotification[], actor?: Actor) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const existingKeys = new Set(existing.map((item) => `${item.type}:${item.entityId}:${item.message}`));
   const created = [];
 
+  const rentSituations = computeRentSituations(contracts, payments, today);
+  const situationsByContract = new Map(rentSituations.map((situation) => [situation.contractId, situation]));
+
   for (const contract of contracts) {
     if (contract.isDeleted === true || contract.status !== "active") continue;
-    const nextDueDate = dateOnly(contract.nextDueDate);
     const endDate = dateOnly(contract.endDate);
-    const balance = Number(contract.balance || 0);
+    const situation = situationsByContract.get(contract.id);
 
-    if (nextDueDate && nextDueDate < today && balance > 0) {
-      const message = `${contract.tenantName} a un solde restant de ${balance.toLocaleString("fr-FR")} FCFA sur ${contract.propertyName}.`;
+    if (situation && situation.totalDue > 0) {
+      const months = situation.dueMonths.map((month) => month.label).slice(0, 4).join(", ");
+      const suffix = situation.dueMonths.length > 4 ? ` et ${situation.dueMonths.length - 4} autre(s) mois` : "";
+      const message = `${contract.tenantName} doit ${situation.dueMonths.length} mois (${months}${suffix}) pour un total de ${situation.totalDue.toLocaleString("fr-FR")} FCFA sur ${contract.propertyName}.`;
       const key = `payment_overdue:${contract.id}:${message}`;
       if (!existingKeys.has(key)) {
-        created.push(await createNotification(organizationId, { type: "payment_overdue", title: "Loyer en retard", message, entityType: "contract", entityId: contract.id, entityLabel: contract.contractNumber, severity: "danger" }, actor));
+        created.push(await createNotification(organizationId, { type: "payment_overdue", title: "Loyer en retard", message, entityType: "contract", entityId: contract.id, entityLabel: contract.contractNumber, severity: situation.status === "partial" ? "warning" : "danger" }, actor));
       }
     }
 

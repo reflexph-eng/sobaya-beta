@@ -5,6 +5,7 @@ import type { Contract, ContractFormValues } from "@/types/contract";
 import type { Property } from "@/types/property";
 import type { Tenant } from "@/types/tenant";
 import { findActiveContractForProperty } from "@/services/business-rules";
+import { ensureReference } from "@/services/reference-numbers";
 
 function contractsCollection(organizationId: string) { return collection(db, "organizations", organizationId, "contracts"); }
 function contractRef(organizationId: string, contractId: string) { return doc(db, "organizations", organizationId, "contracts", contractId); }
@@ -18,10 +19,17 @@ function computeNextDueDate(startDate: string, dueDay: number) {
   return candidate.toISOString().slice(0, 10);
 }
 
+function isPropertyRentable(property?: Property) {
+  if (!property) return false;
+  return property.status !== "maintenance" && property.availabilityStatus !== "withdrawn" && property.operationalStatus !== "maintenance";
+}
+
 function hydrateContractPayload(values: ContractFormValues, properties: Property[], tenants: Tenant[]) {
   const property = properties.find((item) => item.id === values.propertyId);
   const tenant = tenants.find((item) => item.id === values.tenantId);
-  return { ...values, propertyName: property?.name ?? "Bien non renseigné", tenantName: tenant?.fullName ?? "Locataire non renseigné", monthlyRent: Number(values.monthlyRent) || 0, charges: Number(values.charges) || 0, deposit: Number(values.deposit) || 0, advance: Number(values.advance) || 0, dueDay: Math.min(Math.max(Number(values.dueDay) || 1, 1), 28), nextDueDate: computeNextDueDate(values.startDate, values.dueDay), balance: 0 };
+  const dueDay = Math.min(Math.max(Number(values.dueDay) || 1, 1), 28);
+  const nextDueBase = values.onboardingMode === "existing" && values.migrationLastPaidPeriodEnd ? values.migrationLastPaidPeriodEnd : values.startDate;
+  return { ...values, propertyName: property?.name ?? "Bien non renseigné", ownerMandateId: property?.ownerMandateId ?? "", ownerName: property?.ownerName ?? "", managementFeeType: property?.managementFeeType ?? "none", managementFeeValue: Number(property?.managementFeeValue ?? 0), tenantName: tenant?.fullName ?? "Locataire non renseigné", monthlyRent: Number(values.monthlyRent) || 0, charges: Number(values.charges) || 0, deposit: Number(values.deposit) || 0, advance: Number(values.advance) || 0, dueDay, onboardingMode: values.onboardingMode ?? "new", realContractStartDate: values.realContractStartDate || values.startDate, migrationLastPaymentAmount: Number(values.migrationLastPaymentAmount || 0), migrationBalance: Number(values.migrationBalance || 0), migrationDeposit: Number(values.migrationDeposit || values.deposit || 0), migrationAdvance: Number(values.migrationAdvance || values.advance || 0), nextDueDate: computeNextDueDate(nextDueBase, dueDay), balance: Number(values.migrationBalance || 0) };
 }
 
 export async function listContracts(organizationId: string): Promise<Contract[]> {
@@ -46,12 +54,17 @@ export async function createContract(organizationId: string, values: ContractFor
   if (activeConflict) {
     throw new Error(`Ce bien possède déjà un contrat actif : ${activeConflict.contractNumber}.`);
   }
-  const payload = hydrateContractPayload(values, properties, tenants);
+  const selectedProperty = properties.find((property) => property.id === values.propertyId);
+  if (values.status === "active" && !isPropertyRentable(selectedProperty)) {
+    throw new Error("Ce bien n'est pas louable actuellement : il est retiré du marché ou en maintenance.");
+  }
+  const contractNumber = await ensureReference(organizationId, "contract", values.contractNumber);
+  const payload = { ...hydrateContractPayload(values, properties, tenants), contractNumber };
   const ref = await addDoc(contractsCollection(organizationId), { ...payload, organizationId, isDeleted: false, deletedAt: null, deletedBy: null, createdBy: actor?.userId ?? null, updatedBy: actor?.userId ?? null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   if (payload.status === "active") {
     await updateDoc(propertyRef(organizationId, payload.propertyId), { status: "occupied", updatedBy: actor?.userId ?? null, updatedAt: serverTimestamp() });
   }
-  await createActivityLog(organizationId, { action: "CONTRACT_CREATED", entityType: "contract", entityId: ref.id, entityLabel: values.contractNumber, details: `${payload.propertyName} · ${payload.tenantName}`, ...actor });
+  await createActivityLog(organizationId, { action: "CONTRACT_CREATED", entityType: "contract", entityId: ref.id, entityLabel: contractNumber, details: `${payload.propertyName} · ${payload.tenantName}`, ...actor });
   return ref;
 }
 
@@ -62,7 +75,12 @@ export async function updateContract(organizationId: string, contractId: string,
   if (activeConflict) {
     throw new Error(`Ce bien possède déjà un contrat actif : ${activeConflict.contractNumber}.`);
   }
-  const payload = hydrateContractPayload(values, properties, tenants);
+  const selectedProperty = properties.find((property) => property.id === values.propertyId);
+  if (values.status === "active" && !isPropertyRentable(selectedProperty)) {
+    throw new Error("Ce bien n'est pas louable actuellement : il est retiré du marché ou en maintenance.");
+  }
+  const contractNumber = values.contractNumber?.trim() || previous?.contractNumber || await ensureReference(organizationId, "contract");
+  const payload = { ...hydrateContractPayload({ ...values, contractNumber }, properties, tenants), contractNumber };
   const batch = writeBatch(db);
   batch.update(contractRef(organizationId, contractId), { ...payload, updatedBy: actor?.userId ?? null, updatedAt: serverTimestamp() });
   if (previous?.propertyId && previous.propertyId !== payload.propertyId && previous.status === "active") {
@@ -74,7 +92,7 @@ export async function updateContract(organizationId: string, contractId: string,
     batch.update(propertyRef(organizationId, previous.propertyId), { status: "available", updatedBy: actor?.userId ?? null, updatedAt: serverTimestamp() });
   }
   await batch.commit();
-  await createActivityLog(organizationId, { action: "CONTRACT_UPDATED", entityType: "contract", entityId: contractId, entityLabel: values.contractNumber, details: `${payload.propertyName} · ${payload.tenantName}`, ...actor });
+  await createActivityLog(organizationId, { action: "CONTRACT_UPDATED", entityType: "contract", entityId: contractId, entityLabel: contractNumber, details: `${payload.propertyName} · ${payload.tenantName}`, ...actor });
 }
 
 export async function archiveContract(organizationId: string, contract: Pick<Contract, "id" | "contractNumber" | "propertyId" | "status">, actor?: Actor) {

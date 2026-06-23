@@ -1,6 +1,7 @@
 import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { createActivityLog, type Actor } from "@/services/activity-logs";
+import { ensureReference } from "@/services/reference-numbers";
 import type { Tenant, TenantFormValues } from "@/types/tenant";
 
 function tenantsCollection(organizationId: string) { return collection(db, "organizations", organizationId, "tenants"); }
@@ -23,7 +24,8 @@ export async function listArchivedTenants(organizationId: string): Promise<Tenan
 }
 
 export async function createTenant(organizationId: string, values: TenantFormValues, actor?: Actor) {
-  const ref = await addDoc(tenantsCollection(organizationId), { ...values, organizationId, tenantScore: 50, identityVerified: false, documents: [], isDeleted: false, deletedAt: null, deletedBy: null, createdBy: actor?.userId ?? null, updatedBy: actor?.userId ?? null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  const tenantNumber = await ensureReference(organizationId, "tenant");
+  const ref = await addDoc(tenantsCollection(organizationId), { ...values, tenantNumber, organizationId, tenantScore: 50, identityVerified: false, documents: [], isDeleted: false, deletedAt: null, deletedBy: null, createdBy: actor?.userId ?? null, updatedBy: actor?.userId ?? null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   await createActivityLog(organizationId, { action: "TENANT_CREATED", entityType: "tenant", entityId: ref.id, entityLabel: values.fullName, ...actor });
   return ref;
 }

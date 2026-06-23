@@ -176,7 +176,7 @@ export function MaintenanceManager() {
 
         {showForm ? (
           <div className="mb-5 rounded-2xl border border-sobaya-border p-4">
-            <MaintenanceTicketForm ticket={editing} properties={properties} tenants={tenants} contracts={contracts} loading={saving} onCancel={() => { setShowForm(false); setEditing(null); }} onSubmit={handleSubmit} />
+            <MaintenanceTicketForm ticket={editing} properties={properties} tenants={tenants} contracts={contracts} loading={saving} organizationId={organization?.id} actor={{ userId: firebaseUser?.uid, userName: profile?.displayName ?? undefined }} onCancel={() => { setShowForm(false); setEditing(null); }} onSubmit={handleSubmit} />
           </div>
         ) : null}
 

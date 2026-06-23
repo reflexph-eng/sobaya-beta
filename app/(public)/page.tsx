@@ -1,35 +1,66 @@
 import { PublicHeader } from "@/components/layout/public-header";
-import { ButtonLink } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { LegalFooter } from "@/components/layout/legal-footer";
+import { MarketplaceBrowser } from "@/components/marketplace/marketplace-browser";
+import { AdBanner } from "@/components/marketplace/ad-banner";
+import { listPublicListings } from "@/services/listings";
+import { getAdSpotsMap } from "@/services/ad-spots";
+import { serializeFirestoreData } from "@/lib/serialize-firestore";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const [initialPage, adSpots] = await Promise.all([
+    listPublicListings().then(serializeFirestoreData),
+    getAdSpotsMap().then(serializeFirestoreData)
+  ]);
+
   return (
     <main className="min-h-screen bg-white">
       <PublicHeader />
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-12 md:grid-cols-[1.1fr_0.9fr] md:items-center md:py-20">
-        <div>
-          <p className="mb-4 inline-flex rounded-full border border-sobaya-border px-4 py-2 text-sm text-sobaya-muted">Plateforme SaaS de gestion locative africaine</p>
-          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">Votre patrimoine. Sous contrôle.</h1>
-          <p className="mt-5 max-w-2xl text-base leading-8 text-sobaya-muted md:text-lg">SOBAYA centralise vos biens, locataires, contrats, paiements et documents dans une interface simple, sécurisée et pensée pour les propriétaires et agences africaines.</p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="/register">Créer mon espace</ButtonLink>
-            <ButtonLink href="/login" variant="secondary">Me connecter</ButtonLink>
+
+      {/* Bannière publicitaire horizontale pleine largeur */}
+      <div className="mx-auto w-full max-w-6xl px-5 pt-3">
+        <AdBanner slot="banner_top" spot={adSpots.banner_top} className="h-[90px] w-full sm:h-[120px]" />
+      </div>
+
+      <div className="mx-auto w-full max-w-6xl px-5 pb-6 pt-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-sobaya-ink sm:text-3xl">Trouvez votre prochain logement</h1>
+            <p className="mt-2 text-sobaya-muted">Annonces publiées par des propriétaires et agences en Côte d&apos;Ivoire.</p>
           </div>
+          <a
+            href="/carte"
+            className="hidden shrink-0 items-center gap-2 rounded-xl border border-sobaya-border bg-white px-4 py-2 text-sm font-medium text-sobaya-ink transition hover:bg-sobaya-soft sm:inline-flex"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+            Vue carte
+          </a>
         </div>
-        <Card className="space-y-4">
-          {[
-            ["Biens", "Suivi clair de votre patrimoine"],
-            ["Locataires", "Dossiers et contacts organisés"],
-            ["Paiements", "Vue simple des loyers et reçus"],
-            ["Organisation", "Abonnement et accès par équipe"]
-          ].map(([title, description]) => (
-            <div key={title} className="rounded-2xl border border-sobaya-border p-4">
-              <p className="font-medium">{title}</p>
-              <p className="mt-1 text-sm text-sobaya-muted">{description}</p>
-            </div>
-          ))}
-        </Card>
-      </section>
+      </div>
+
+      {/* Layout 3 colonnes : pub gauche | annonces | pub droite */}
+      <div className="mx-auto w-full max-w-6xl px-5 pb-12">
+        <div className="flex gap-5">
+          {/* Colonne gauche : 2 emplacements pub empilés */}
+          <aside className="hidden w-[220px] shrink-0 flex-col gap-4 lg:flex">
+            <AdBanner slot="sidebar_left_1" spot={adSpots.sidebar_left_1} className="h-[250px] w-full" />
+            <AdBanner slot="sidebar_left_2" spot={adSpots.sidebar_left_2} className="h-[250px] w-full" />
+          </aside>
+
+          {/* Zone centrale : annonces */}
+          <div className="min-w-0 flex-1">
+            <MarketplaceBrowser initialPage={initialPage} />
+          </div>
+
+          {/* Colonne droite : 1 emplacement pub haut */}
+          <aside className="hidden w-[220px] shrink-0 lg:block">
+            <AdBanner slot="sidebar_right" spot={adSpots.sidebar_right} className="h-[500px] w-full" />
+          </aside>
+        </div>
+      </div>
+
+      <LegalFooter />
     </main>
   );
 }

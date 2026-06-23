@@ -3,6 +3,7 @@ export type TenantStatus = "active" | "notice" | "exited" | "suspended";
 export interface Tenant {
   id: string;
   organizationId: string;
+  tenantNumber?: string;
   fullName: string;
   phone: string;
   email: string;
@@ -24,4 +25,4 @@ export interface Tenant {
   updatedAt: Date;
 }
 
-export type TenantFormValues = Omit<Tenant, "id" | "organizationId" | "tenantScore" | "identityVerified" | "documents" | "createdAt" | "updatedAt">;
+export type TenantFormValues = Omit<Tenant, "id" | "organizationId" | "tenantNumber" | "tenantScore" | "identityVerified" | "documents" | "createdAt" | "updatedAt">;

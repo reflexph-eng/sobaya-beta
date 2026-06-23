@@ -18,6 +18,7 @@ import type { MaintenanceIntervention, MaintenanceInterventionFormValues, Mainte
 import type { MaintenanceTicket } from "@/types/maintenance";
 import type { ServiceProvider } from "@/types/provider";
 import { InterventionForm, interventionStatusLabels } from "@/components/interventions/intervention-form";
+import { QuotePanel } from "@/components/interventions/quote-panel";
 
 function money(value: number) {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(value || 0);
@@ -135,6 +136,14 @@ export function InterventionsManager({ embedded = false, ticketId }: { embedded?
               </div>
               <p className="mt-3 text-sm text-sobaya-ink">{intervention.workDescription}</p>
               {intervention.rating > 0 ? <p className="mt-2 text-sm text-sobaya-muted">Évaluation : {'★'.repeat(intervention.rating)}{'☆'.repeat(Math.max(0, 5 - intervention.rating))} {intervention.ratingComment ? `· ${intervention.ratingComment}` : ""}</p> : null}
+              {canManage && organization?.id ? (
+                <QuotePanel
+                  organizationId={organization.id}
+                  intervention={intervention}
+                  onUpdated={refresh}
+                  actor={{ userId: firebaseUser?.uid, userName: profile?.displayName ?? undefined }}
+                />
+              ) : null}
               {canManage ? <div className="mt-4 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => { setEditing(intervention); setShowForm(true); }}><Edit3 size={15} /> Modifier</Button><Button variant="ghost" onClick={() => handleArchive(intervention)}><Trash2 size={15} /> Archiver</Button></div> : null}
             </div>
           ))}

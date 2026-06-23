@@ -1,7 +1,7 @@
 import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { getPermissionsForRole } from "@/lib/permissions";
-import type { Organization, OrganizationMember, OrganizationType, SubscriptionPlan } from "@/types/organization";
+import type { DashboardSettings, Organization, OrganizationMember, OrganizationType, SubscriptionPlan } from "@/types/organization";
 
 export async function createStarterOrganization({ userId, name, email = "", displayName = "", type = "owner", subscriptionPlan = "starter" }: { userId: string; name: string; email?: string; displayName?: string; type?: OrganizationType; subscriptionPlan?: SubscriptionPlan }) {
   const organizationRef = await addDoc(collection(db, "organizations"), {
@@ -48,6 +48,17 @@ export async function getUserOrganizations(userId: string) {
 export async function updateOrganizationName(organizationId: string, name: string) {
   await updateDoc(doc(db, "organizations", organizationId), {
     name: name.trim(),
+    updatedAt: serverTimestamp()
+  });
+}
+
+
+export async function updateOrganizationDashboardSettings(organizationId: string, dashboardSettings: DashboardSettings) {
+  await updateDoc(doc(db, "organizations", organizationId), {
+    dashboardSettings: {
+      ...dashboardSettings,
+      updatedAt: serverTimestamp()
+    },
     updatedAt: serverTimestamp()
   });
 }

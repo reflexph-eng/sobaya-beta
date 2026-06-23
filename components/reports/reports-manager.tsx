@@ -13,7 +13,9 @@ import { listContracts } from "@/services/contracts";
 import { listMaintenanceInterventions } from "@/services/interventions";
 import { listPayments } from "@/services/payments";
 import { listProperties } from "@/services/properties";
+import { computeRentSituations } from "@/services/rent-arrears";
 import { buildMonthlyReport, buildPropertyReport, defaultReportPeriod, type ReportPeriod } from "@/services/reports";
+import { computePropertySituation } from "@/services/property-situation";
 import type { Contract } from "@/types/contract";
 import type { MaintenanceIntervention } from "@/types/intervention";
 import type { Payment } from "@/types/payment";
@@ -83,8 +85,9 @@ export function ReportsManager() {
     const propertyRows = buildPropertyReport({ properties, contracts, payments, interventions, period });
     const monthlyRows = buildMonthlyReport({ payments, interventions, period });
     const activeProperties = properties.filter((property) => property.status !== "archived");
-    const occupiedProperties = activeProperties.filter((property) => property.status === "occupied").length;
-    const vacantProperties = activeProperties.filter((property) => property.status === "available").length;
+    const propertySituations = activeProperties.map((property) => computePropertySituation(property, contracts));
+    const occupiedProperties = propertySituations.filter((item) => item.dashboardBucket === "occupied").length;
+    const vacantProperties = propertySituations.filter((item) => item.dashboardBucket === "available").length;
     const collected = propertyRows.reduce((sum, row) => sum + row.collected, 0);
     const expectedMonthly = propertyRows.reduce((sum, row) => sum + row.expectedRent, 0);
     const maintenanceCost = propertyRows.reduce((sum, row) => sum + row.maintenanceCost, 0);
@@ -92,8 +95,12 @@ export function ReportsManager() {
     const occupancyRate = activeProperties.length ? (occupiedProperties / activeProperties.length) * 100 : 0;
     const vacancyRate = activeProperties.length ? (vacantProperties / activeProperties.length) * 100 : 0;
     const activeContracts = contracts.filter((contract) => contract.status === "active" && contract.isDeleted !== true);
-    const unpaidBalance = activeContracts.reduce((sum, contract) => sum + Number(contract.balance || 0), 0);
-    return { propertyRows, monthlyRows, activeProperties, collected, expectedMonthly, maintenanceCost, netRevenue, occupancyRate, vacancyRate, unpaidBalance };
+    const rentSituations = computeRentSituations(activeContracts, payments);
+    const unpaidBalance = rentSituations.reduce((sum, situation) => sum + situation.totalDue, 0);
+    const lateTenants = rentSituations.filter((situation) => situation.totalDue > 0).length;
+    const dueMonths = rentSituations.reduce((sum, situation) => sum + situation.dueMonths.length, 0);
+    const recoveryRate = expectedMonthly ? Math.min(100, (collected / expectedMonthly) * 100) : 0;
+    return { propertyRows, monthlyRows, activeProperties, collected, expectedMonthly, maintenanceCost, netRevenue, occupancyRate, vacancyRate, unpaidBalance, lateTenants, dueMonths, recoveryRate };
   }, [contracts, interventions, payments, period, properties]);
 
   function exportPropertyCsv() {
@@ -141,9 +148,9 @@ export function ReportsManager() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Loyer mensuel attendu" value={money(reports.expectedMonthly)} compact helper="Contrats actifs" />
-        <MetricCard label="Impayés déclarés" value={money(reports.unpaidBalance)} compact helper="Soldes des contrats actifs" />
+        <MetricCard label="Arriérés intelligents" value={money(reports.unpaidBalance)} compact helper={`${reports.lateTenants} locataire(s) · ${reports.dueMonths} mois dû(s)`} />
         <MetricCard label="Coût maintenance" value={money(reports.maintenanceCost)} compact helper="Interventions de la période" />
-        <MetricCard label="Mois analysés" value={reports.monthlyRows.length} helper="Période sélectionnée" />
+        <MetricCard label="Taux recouvrement" value={percent(reports.recoveryRate)} helper="Encaissé / attendu mensuel" />
       </div>
 
       <Card>
