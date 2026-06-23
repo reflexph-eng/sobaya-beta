@@ -119,8 +119,8 @@ service cloud.firestore {
       // Sprint Invitation — invitations locataires à usage unique
       match /tenantInvitations/{invId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
-        // Lecture publique complète (get + list) pour permettre la requête where("token","==",token)
-        allow get, list: if true;
+        // Lecture publique par ID uniquement (getDoc direct — pas de requête where)
+        allow get: if true;
         allow create: if canCreateOrgData(orgId, 'tenants.create') || canCreateOrgData(orgId, 'tenants.manage');
         // Le locataire peut soumettre ses données
         allow update: if (resource.data.status == 'pending'

@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDocs, getDoc, orderBy, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { TenantInvitation, TenantInvitationData } from "@/types/tenant-invitation";
 import type { Actor } from "@/services/activity-logs";
@@ -12,20 +12,22 @@ function invitationRef(organizationId: string, id: string) {
   return doc(db, "organizations", organizationId, "tenantInvitations", id);
 }
 
-/** Génère un token aléatoire sécurisé de 20 caractères */
+/** Génère un token de sécurité (stocké dans le doc, vérifié à l'ouverture) */
 function generateToken(): string {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  return Array.from({ length: 20 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return Array.from({ length: 16 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
-/** Crée une invitation à usage unique valide 7 jours */
+/** Crée une invitation à usage unique valide 7 jours.
+ *  URL = /invitation/{orgId}/{docId} — lecture directe par ID, pas de requête where.
+ */
 export async function createTenantInvitation(
   organizationId: string,
   tenantNameHint: string,
   tenantPhoneHint: string,
   actor?: Actor
 ): Promise<TenantInvitation> {
-  const token = generateToken();
+  const token = generateToken(); // token de sécurité stocké dans le doc
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -52,7 +54,7 @@ export async function createTenantInvitation(
   });
 
   return {
-    id: ref.id,
+    id: ref.id, // C'est l'ID du doc — utilisé dans l'URL
     organizationId,
     tenantNameHint,
     tenantPhoneHint,
@@ -70,13 +72,15 @@ export async function listTenantInvitations(organizationId: string): Promise<Ten
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TenantInvitation);
 }
 
-/** Récupère une invitation par son token (côté public — sans orgId) */
-export async function getInvitationByToken(organizationId: string, token: string): Promise<TenantInvitation | null> {
-  const q = query(invitationsCollection(organizationId), where("token", "==", token));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  const d = snap.docs[0];
-  return { id: d.id, ...d.data() } as TenantInvitation;
+/**
+ * Récupère une invitation par son ID de document (getDoc direct — pas de where).
+ * URL = /invitation/{orgId}/{invitationId}
+ * Fonctionne côté serveur ET côté client, pas de règle list nécessaire.
+ */
+export async function getInvitationById(organizationId: string, invitationId: string): Promise<TenantInvitation | null> {
+  const snap = await getDoc(invitationRef(organizationId, invitationId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as TenantInvitation;
 }
 
 /** Valide si une invitation est encore utilisable */
@@ -98,15 +102,13 @@ export async function submitTenantInvitation(
   });
 }
 
-/** Valide l'invitation et crée le dossier locataire — appelé par le propriétaire */
+/** Valide l'invitation et crée le dossier locataire */
 export async function approveInvitation(
   organizationId: string,
   invitation: TenantInvitation,
   actor?: Actor
 ): Promise<string> {
   const data = invitation.submittedData!;
-
-  // Importer createTenant dynamiquement pour éviter les dépendances circulaires
   const { createTenant } = await import("@/services/tenants");
   const ref = await createTenant(organizationId, {
     fullName: data.displayName,
