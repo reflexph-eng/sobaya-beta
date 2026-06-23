@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+  <rect width="400" height="400" fill="#F0F9FB"/>
+  <rect x="2" y="2" width="396" height="396" fill="none" stroke="#CCEBE8" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="200" y="188" text-anchor="middle" font-family="Arial" font-size="16" fill="#0F766E">📷 SOBAYA</text>
+  <text x="200" y="214" text-anchor="middle" font-family="Arial" font-size="13" fill="#64748B">Photo fondateur (400×400)</text>
+</svg>

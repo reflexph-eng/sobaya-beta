@@ -51,6 +51,7 @@ const navGroups: NavGroup[] = [
     { href: "/admin/search", label: "Recherche admin", icon: Search, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/support", label: "Support", icon: LifeBuoy, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/pub", label: "Espaces pub", icon: Megaphone, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/about", label: "Page À propos", icon: FileText, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/badges", label: "Badges confiance", icon: Award, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/roles", label: "Rôles globaux", icon: Shield, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/archives", label: "Archives", icon: Archive, permission: PERMISSIONS.ARCHIVES_MANAGE },

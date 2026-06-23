@@ -19,11 +19,11 @@ export default async function HomePage() {
       <PublicHeader />
 
       {/* Bannière publicitaire horizontale pleine largeur */}
-      <div className="mx-auto w-full max-w-6xl px-5 pt-3">
+      <div className="mx-auto w-full max-w-screen-xl px-5 pt-3">
         <AdBanner slot="banner_top" spot={adSpots.banner_top} className="h-[90px] w-full sm:h-[120px]" />
       </div>
 
-      <div className="mx-auto w-full max-w-6xl px-5 pb-6 pt-4">
+      <div className="mx-auto w-full max-w-screen-xl px-5 pb-6 pt-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-sobaya-ink sm:text-3xl">Trouvez votre prochain logement</h1>
@@ -40,7 +40,7 @@ export default async function HomePage() {
       </div>
 
       {/* Layout 3 colonnes : pub gauche | annonces | pub droite */}
-      <div className="mx-auto w-full max-w-6xl px-5 pb-12">
+      <div className="mx-auto w-full max-w-screen-xl px-5 pb-12">
         <div className="flex gap-5">
           {/* Colonne gauche : 2 emplacements pub empilés */}
           <aside className="hidden w-[220px] shrink-0 flex-col gap-4 lg:flex">

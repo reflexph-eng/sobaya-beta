@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+  <rect width="200" height="200" fill="#F0F9FB"/>
+  <rect x="2" y="2" width="196" height="196" fill="none" stroke="#CCEBE8" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="100" y="88" text-anchor="middle" font-family="Arial" font-size="16" fill="#0F766E">📷 SOBAYA</text>
+  <text x="100" y="114" text-anchor="middle" font-family="Arial" font-size="13" fill="#64748B">Témoignage 1 (200×200)</text>
+</svg>

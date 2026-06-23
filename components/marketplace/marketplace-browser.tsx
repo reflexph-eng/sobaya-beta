@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Home, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EmptyState } from "@/components/ui/empty-state";
 import { listPublicListings, isCurrentlyFeatured, type ListingPage } from "@/services/listings";
 import { SELLER_TYPE_LABELS } from "@/types/listing";
 import type { ListingSearchFilters, PublicListing } from "@/types/listing";
@@ -62,7 +61,7 @@ export function MarketplaceBrowser({ initialPage }: { initialPage: ListingPage }
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-5 pb-16">
+    <div className="mx-auto w-full max-w-screen-xl px-5 pb-16">
       <div className="mb-6 space-y-3 rounded-2xl border border-sobaya-border p-4">
         {/* Ligne 1 : Recherche par ville + bouton */}
         <div className="flex gap-3">
@@ -110,46 +109,77 @@ export function MarketplaceBrowser({ initialPage }: { initialPage: ListingPage }
       </div>
 
       {listings.length === 0 ? (
-        <EmptyState icon={<Home size={34} />} title="Aucune annonce trouvée" description="Modifiez vos critères de recherche ou revenez plus tard." />
-      ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {listings.map((listing) => (
-            <Link key={listing.id} href={`/marketplace/${listing.id}`} className="group overflow-hidden rounded-2xl border border-sobaya-border bg-white transition hover:shadow-soft">
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-sobaya-soft">
-                {listing.photoGallery[0] ? (
-                  <img src={listing.photoGallery[0].url} alt={listing.title} className="h-full w-full object-cover transition group-hover:scale-105" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sobaya-muted"><Home size={32} /></div>
-                )}
-                {listing.sellerType ? (
-                  <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-sobaya-ink shadow-sm">
-                    {SELLER_TYPE_LABELS[listing.sellerType] ?? "Annonceur"}
-                  </span>
-                ) : null}
-                {isCurrentlyFeatured(listing) ? (
-                  <span className="absolute right-2 top-2 rounded-full bg-amber-400 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
-                    ⭐ En vedette
-                  </span>
-                ) : null}
-              </div>
-              <div className="p-4">
-                <p className="font-medium text-sobaya-ink">{listing.title}</p>
-                <p className="mt-1 text-sm text-sobaya-muted">{listing.commune ? `${listing.commune}, ` : ""}{listing.city}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <p className="font-semibold text-sobaya-primary">{money(listing.monthlyRent)}<span className="text-xs font-normal text-sobaya-muted"> /mois</span></p>
-                  <p className="text-xs text-sobaya-muted">{listing.rooms} pièce(s)</p>
-                </div>
-              </div>
-            </Link>
-          ))}
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-sobaya-border py-20 text-center">
+          <Home size={40} className="text-sobaya-muted" />
+          <p className="font-medium text-sobaya-ink">Aucune annonce trouvée</p>
+          <p className="text-sm text-sobaya-muted max-w-xs">Modifiez vos critères de recherche ou revenez bientôt.</p>
+          <button type="button" onClick={() => { setFilters({}); setCityInput(""); handleSearch({}); }} className="text-sm font-medium text-sobaya-primary underline underline-offset-2">
+            Voir toutes les annonces
+          </button>
         </div>
+      ) : (
+        <>
+          <p className="mb-4 text-sm text-sobaya-muted">
+            <span className="font-semibold text-sobaya-ink">{listings.length}</span> annonce(s) disponible(s){Object.values(filters).some(Boolean) ? " · filtrées" : ""}
+          </p>
+          {listings.filter(isCurrentlyFeatured).length > 0 && (
+            <div className="mb-8">
+              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-600">⭐ Annonces en vedette</p>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {listings.filter(isCurrentlyFeatured).map((listing) => <ListingCard key={listing.id} listing={listing} featured />)}
+              </div>
+              <div className="mt-6 border-t border-sobaya-border pt-4">
+                <p className="mb-3 text-sm font-semibold text-sobaya-ink">Toutes les annonces</p>
+              </div>
+            </div>
+          )}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {listings.filter((l) => !isCurrentlyFeatured(l)).map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+          </div>
+        </>
       )}
-
       {hasMore ? (
         <div className="mt-8 flex justify-center">
           <Button variant="secondary" disabled={loadingMore} onClick={handleLoadMore}>{loadingMore ? "Chargement..." : "Voir plus d'annonces"}</Button>
         </div>
       ) : null}
+      <div className="mt-12 rounded-2xl bg-sobaya-primary p-8 text-center text-white">
+        <p className="text-xl font-bold">Vous avez un bien à louer ?</p>
+        <p className="mt-2 text-white/70">Publiez votre annonce gratuitement sur SOBAYA et touchez des milliers de visiteurs.</p>
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <Link href="/register" className="rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-sobaya-primary hover:bg-sobaya-soft transition">Publier gratuitement</Link>
+          <Link href="/a-propos" className="rounded-xl border border-white/30 px-6 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition">En savoir plus</Link>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function ListingCard({ listing, featured = false }: { listing: PublicListing; featured?: boolean }) {
+  const money = (v: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(v || 0);
+  return (
+    <Link href={`/marketplace/${listing.id}`} className={`group overflow-hidden rounded-2xl border bg-white transition hover:shadow-md ${featured ? "border-amber-200 ring-1 ring-amber-200" : "border-sobaya-border"}`}>
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-sobaya-soft">
+        {listing.photoGallery[0] ? (
+          <img src={listing.photoGallery[0].url} alt={listing.title} className="h-full w-full object-cover transition group-hover:scale-105" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sobaya-muted"><Home size={32} /></div>
+        )}
+        {listing.sellerType ? (
+          <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-sobaya-ink shadow-sm">{SELLER_TYPE_LABELS[listing.sellerType] ?? "Annonceur"}</span>
+        ) : null}
+        {isCurrentlyFeatured(listing) ? (
+          <span className="absolute right-2 top-2 rounded-full bg-amber-400 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">⭐ En vedette</span>
+        ) : null}
+      </div>
+      <div className="p-4">
+        <p className="font-medium text-sobaya-ink line-clamp-1">{listing.title}</p>
+        <p className="mt-1 flex items-center gap-1 text-sm text-sobaya-muted"><MapPin size={11} className="shrink-0" />{listing.commune ? `${listing.commune}, ` : ""}{listing.city}</p>
+        <div className="mt-3 flex items-center justify-between border-t border-sobaya-border pt-3">
+          <p className="font-bold text-sobaya-primary">{money(listing.monthlyRent)}<span className="text-xs font-normal text-sobaya-muted"> /mois</span></p>
+          <p className="rounded-full bg-sobaya-soft px-2 py-0.5 text-xs text-sobaya-muted">{listing.rooms} pièce(s)</p>
+        </div>
+      </div>
+    </Link>
   );
 }

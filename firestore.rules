@@ -228,6 +228,12 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // Page Contact — soumissions publiques
+    match /contactRequests/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isSuperAdmin();
+    }
+
     // Sprint Admin — configuration globale des modules.
     match /platformConfig/{docId} {
       allow read: if true;
