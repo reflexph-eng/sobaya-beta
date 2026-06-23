@@ -104,7 +104,7 @@ export function AboutManager() {
       {/* Stats */}
       <Card>
         <p className="mb-4 font-medium text-sobaya-ink">Chiffres clés</p>
-        <p className="mb-4 text-sm text-sobaya-muted">Laissez vide pour afficher un message d&apos;invitation à rejoindre SOBAYA.</p>
+        <p className="mb-4 text-sm text-sobaya-muted">Laissez vide pour afficher un message d'invitation à rejoindre SOBAYA.</p>
         <div className="grid gap-4 md:grid-cols-3">
           <FormField label="Biens gérés" help="Ex: 500+">
             <Input value={content.statBiens ?? ""} onChange={(e) => update("statBiens", e.target.value)} placeholder="Ex: 500+" />

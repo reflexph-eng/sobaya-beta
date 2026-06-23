@@ -116,23 +116,6 @@ service cloud.firestore {
         allow delete: if isSuperAdmin();
       }
 
-    // Invitations locataires — lecture publique par ID, création réservée org
-    match /organizations/{orgId}/tenantInvitations/{invId} {
-      allow get: if true;
-      allow read: if isOrgMember(orgId) || isSuperAdmin();
-      allow create: if isOrgMember(orgId) || isSuperAdmin();
-      allow update: if isOrgMember(orgId) || isSuperAdmin();
-      allow delete: if isSuperAdmin();
-    }
-
-    // Soumissions locataires — collection RACINE, écriture publique
-    // Le locataire crée un nouveau doc (jamais update) — règle la plus simple possible
-    match /tenantSubmissions/{docId} {
-      allow create: if true;
-      allow read, update, delete: if isSuperAdmin()
-        || (request.auth != null && exists(/databases/$(database)/documents/organizations/$(resource.data.organizationId)/members/$(request.auth.uid)));
-    }
-
       match /bookings/{docId} {
         allow read: if canReadOrgData(orgId, 'bookings.read') || canReadOrgData(orgId, 'bookings.manage');
         allow create: if canCreateOrgData(orgId, 'bookings.create') || canCreateOrgData(orgId, 'bookings.manage')
