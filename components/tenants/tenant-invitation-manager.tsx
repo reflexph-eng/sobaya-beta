@@ -53,7 +53,14 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
 
   function getInvitationUrl(inv: TenantInvitation) {
     const base = typeof window !== "undefined" ? window.location.origin : "https://sobaya.ci";
-    return `${base}/invitation/${inv.organizationId}/${inv.token}`;
+    // On utilise explicitement inv.token (le champ aléatoire), jamais inv.id (l'ID Firestore)
+    const token = inv.token;
+    const orgId = inv.organizationId;
+    if (!token || !orgId) {
+      console.error("Invitation incomplète:", { id: inv.id, token, orgId });
+      return "";
+    }
+    return `${base}/invitation/${orgId}/${token}`;
   }
 
   async function handleCreate() {
