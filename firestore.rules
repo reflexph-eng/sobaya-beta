@@ -116,6 +116,20 @@ service cloud.firestore {
         allow delete: if isSuperAdmin();
       }
 
+      // Sprint Invitation — invitations locataires à usage unique
+      match /tenantInvitations/{invId} {
+        allow read: if isOrgMember(orgId) || isSuperAdmin();
+        // Lecture publique limitée aux tokens (pour la page de formulaire)
+        allow get: if true;
+        allow create: if canCreateOrgData(orgId, 'tenants.create') || canCreateOrgData(orgId, 'tenants.manage');
+        // Le locataire peut soumettre ses données (update status + submittedData)
+        allow update: if (resource.data.status == 'pending'
+                        && request.resource.data.status == 'completed'
+                        && request.resource.data.submittedData is map)
+                      || isOrgMember(orgId) || isSuperAdmin();
+        allow delete: if isSuperAdmin();
+      }
+
       match /bookings/{docId} {
         allow read: if canReadOrgData(orgId, 'bookings.read') || canReadOrgData(orgId, 'bookings.manage');
         allow create: if canCreateOrgData(orgId, 'bookings.create') || canCreateOrgData(orgId, 'bookings.manage')

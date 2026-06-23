@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MetricCard } from "@/components/ui/metric-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { TenantInvitationManager } from "@/components/tenants/tenant-invitation-manager";
 import { SimpleTabs } from "@/components/ui/tabs";
 import { useAuth } from "@/components/providers/auth-provider";
 import { can } from "@/lib/permissions";
@@ -143,6 +144,16 @@ export function TenantsManager() {
   return (
     <div className="space-y-5">
       <PageHeader title="Locataires" description="Centralisez les fiches locataires de votre organisation." />
+      {canCreate ? (
+        <div className="mb-6">
+          <TenantInvitationManager onTenantCreated={refresh} />
+          <div className="my-6 flex items-center gap-3">
+            <div className="flex-1 border-t border-sobaya-border" />
+            <span className="text-xs text-sobaya-muted">ou ajouter manuellement</span>
+            <div className="flex-1 border-t border-sobaya-border" />
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="Total locataires" value={stats.total} helper="Fiches non sorties" />
