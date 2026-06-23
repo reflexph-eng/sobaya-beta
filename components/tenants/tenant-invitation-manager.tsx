@@ -1,35 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Clock, Copy, Link2, Plus, Send, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Copy, Plus, Send, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
-  approveInvitation,
+  approveSubmission,
   createTenantInvitation,
   isInvitationValid,
+  listPendingSubmissions,
   listTenantInvitations
 } from "@/services/tenant-invitations";
-import type { TenantInvitation } from "@/types/tenant-invitation";
-
-const STATUS_LABELS = {
-  pending: "En attente",
-  completed: "Dossier reçu",
-  expired: "Traitée / Expirée"
-};
-
-const STATUS_COLORS = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  expired: "bg-gray-100 text-gray-500 border-gray-200"
-};
+import type { TenantInvitation, TenantSubmission } from "@/services/tenant-invitations";
 
 export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?: () => void }) {
   const { organization, firebaseUser, profile } = useAuth();
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
+  const [submissions, setSubmissions] = useState<TenantSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -45,16 +35,22 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
   const refresh = useCallback(async () => {
     if (!organization?.id) return;
     setLoading(true);
-    try { setInvitations(await listTenantInvitations(organization.id)); }
-    finally { setLoading(false); }
+    try {
+      const [invs, subs] = await Promise.all([
+        listTenantInvitations(organization.id),
+        listPendingSubmissions(organization.id)
+      ]);
+      setInvitations(invs);
+      setSubmissions(subs);
+    } finally {
+      setLoading(false);
+    }
   }, [organization?.id]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   function getInvitationUrl(inv: TenantInvitation) {
     const base = typeof window !== "undefined" ? window.location.origin : "https://sobaya.ci";
-    // L'URL utilise l'ID du document Firestore (inv.id), pas le token aléatoire.
-    // La page lit le doc directement par getDoc(orgId, invId) — simple et fiable.
     return `${base}/invitation/${inv.organizationId}/${inv.id}`;
   }
 
@@ -89,16 +85,16 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
   function handleWhatsApp(inv: TenantInvitation) {
     const url = getInvitationUrl(inv);
     const msg = encodeURIComponent(
-      `Bonjour ${inv.tenantNameHint},\n\nJe vous invite à compléter votre dossier locataire SOBAYA en cliquant sur le lien ci-dessous :\n\n${url}\n\nCe lien est valide 7 jours.\n\nCordialement`
+      `Bonjour ${inv.tenantNameHint},\n\nJe vous invite à compléter votre dossier locataire SOBAYA en cliquant sur ce lien :\n\n${url}\n\nCe lien est valide 7 jours.\n\nCordialement`
     );
-    window.open(`https://wa.me/${inv.tenantPhoneHint.replace(/\D/g, "")}?text=${msg}`, "_blank");
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
   }
 
-  async function handleApprove(inv: TenantInvitation) {
+  async function handleApprove(sub: TenantSubmission) {
     if (!organization?.id) return;
-    setApproving(inv.id);
+    setApproving(sub.id);
     try {
-      await approveInvitation(organization.id, inv, actor);
+      await approveSubmission(organization.id, sub, actor);
       await refresh();
       onTenantCreated?.();
     } catch {
@@ -109,12 +105,11 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
   }
 
   const pending = invitations.filter((i) => i.status === "pending" && isInvitationValid(i));
-  const completed = invitations.filter((i) => i.status === "completed");
-  const others = invitations.filter((i) => i.status === "expired" || (i.status === "pending" && !isInvitationValid(i)));
+  // Soumissions non encore approuvées
+  const pendingSubmissions = submissions.filter((s) => !(s as { approvedTenantId?: string }).approvedTenantId);
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <UserPlus size={18} className="text-sobaya-primary" />
@@ -125,7 +120,7 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
         </Button>
       </div>
 
-      {/* Formulaire de création */}
+      {/* Formulaire création */}
       {showForm && (
         <Card>
           <p className="mb-4 text-sm font-medium text-sobaya-ink">Nouvelle invitation</p>
@@ -141,13 +136,13 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setShowForm(false)}>Annuler</Button>
             <Button disabled={creating} onClick={handleCreate}>
-              <Link2 size={15} /> {creating ? "Génération..." : "Générer le lien"}
+              {creating ? "Génération..." : "Générer le lien"}
             </Button>
           </div>
         </Card>
       )}
 
-      {/* Lien nouvellement créé */}
+      {/* Nouveau lien créé */}
       {newInvitation && (
         <Card>
           <div className="flex items-start gap-3">
@@ -169,23 +164,21 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
       )}
 
       {/* Dossiers reçus — à valider */}
-      {completed.length > 0 && (
+      {pendingSubmissions.length > 0 && (
         <div>
           <p className="mb-2 text-sm font-semibold text-emerald-700 flex items-center gap-1.5">
-            <CheckCircle2 size={15} /> {completed.length} dossier(s) reçu(s) — à valider
+            <CheckCircle2 size={15} /> {pendingSubmissions.length} dossier(s) reçu(s) — à valider
           </p>
           <div className="space-y-2">
-            {completed.map((inv) => (
-              <div key={inv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            {pendingSubmissions.map((sub) => (
+              <div key={sub.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                 <div>
-                  <p className="font-medium text-sobaya-ink">{inv.submittedData?.displayName || inv.tenantNameHint}</p>
-                  <p className="text-sm text-sobaya-muted">{inv.submittedData?.phone} · Reçu le {inv.completedAt ? new Date(inv.completedAt).toLocaleDateString("fr-FR") : "—"}</p>
-                  {inv.submittedData?.profession && (
-                    <p className="text-xs text-sobaya-muted mt-0.5">{inv.submittedData.profession}{inv.submittedData.employer ? ` · ${inv.submittedData.employer}` : ""}</p>
-                  )}
+                  <p className="font-medium text-sobaya-ink">{sub.displayName}</p>
+                  <p className="text-sm text-sobaya-muted">{sub.phone}</p>
+                  {sub.profession && <p className="text-xs text-sobaya-muted mt-0.5">{sub.profession}{sub.employer ? ` · ${sub.employer}` : ""}</p>}
                 </div>
-                <Button disabled={approving === inv.id} onClick={() => handleApprove(inv)}>
-                  <UserPlus size={14} /> {approving === inv.id ? "Création..." : "Créer le dossier"}
+                <Button disabled={approving === sub.id} onClick={() => handleApprove(sub)}>
+                  <UserPlus size={14} /> {approving === sub.id ? "Création..." : "Créer le dossier"}
                 </Button>
               </div>
             ))}
@@ -193,18 +186,18 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
         </div>
       )}
 
-      {/* En attente */}
+      {/* Invitations en attente */}
       {pending.length > 0 && (
         <div>
           <p className="mb-2 text-sm font-medium text-amber-700 flex items-center gap-1.5">
-            <Clock size={15} /> {pending.length} invitation(s) en attente
+            <Clock size={15} /> {pending.length} invitation(s) en attente de réponse
           </p>
           <div className="space-y-2">
             {pending.map((inv) => (
               <div key={inv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
                 <div>
                   <p className="text-sm font-medium text-sobaya-ink">{inv.tenantNameHint}</p>
-                  <p className="text-xs text-sobaya-muted">{inv.tenantPhoneHint} · Expire le {new Date(inv.expiresAt).toLocaleDateString("fr-FR")}</p>
+                  <p className="text-xs text-sobaya-muted">Expire le {new Date(inv.expiresAt).toLocaleDateString("fr-FR")}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="secondary" onClick={() => handleWhatsApp(inv)}>
@@ -221,9 +214,9 @@ export function TenantInvitationManager({ onTenantCreated }: { onTenantCreated?:
       )}
 
       {loading && <p className="text-sm text-sobaya-muted">Chargement...</p>}
-      {!loading && invitations.length === 0 && (
+      {!loading && invitations.length === 0 && pendingSubmissions.length === 0 && (
         <p className="text-sm text-sobaya-muted text-center py-4">
-          Aucune invitation pour l&apos;instant. Cliquez sur &ldquo;Inviter un locataire&rdquo; pour commencer.
+          Aucune invitation pour l&apos;instant.
         </p>
       )}
     </div>

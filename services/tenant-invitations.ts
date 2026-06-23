@@ -1,45 +1,84 @@
-import { addDoc, collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+/**
+ * Système d'invitation locataire — Architecture V2 (simple et fiable)
+ *
+ * PRINCIPE :
+ * - Le propriétaire crée une invitation → stockée dans organizations/{orgId}/tenantInvitations
+ * - Le locataire soumet son formulaire → crée un NOUVEAU doc dans tenantSubmissions (collection racine)
+ *   allow create: if true — aucun problème de règles, c'est une création pure
+ * - Le propriétaire valide la soumission → dossier locataire créé dans SOBAYA
+ *
+ * Plus de updateDoc sur une collection protégée = plus de bug de règles Firestore.
+ */
+
+import {
+  addDoc, collection, doc, getDoc, getDocs,
+  orderBy, query, serverTimestamp, updateDoc, where
+} from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import type { TenantInvitation, TenantInvitationData } from "@/types/tenant-invitation";
 import type { Actor } from "@/services/activity-logs";
 import { createActivityLog } from "@/services/activity-logs";
 
-function invitationsCollection(organizationId: string) {
-  return collection(db, "organizations", organizationId, "tenantInvitations");
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export type InvitationStatus = "pending" | "submitted" | "approved" | "expired";
+
+export interface TenantInvitation {
+  id: string;
+  organizationId: string;
+  tenantNameHint: string;
+  tenantPhoneHint: string;
+  status: InvitationStatus;
+  expiresAt: string;
+  createdAt: Date | unknown;
+  createdBy?: string | null;
 }
 
-function invitationRef(organizationId: string, id: string) {
-  return doc(db, "organizations", organizationId, "tenantInvitations", id);
+export interface TenantSubmission {
+  id: string;
+  invitationId: string;
+  organizationId: string;
+  // Données remplies par le locataire
+  displayName: string;
+  phone: string;
+  email?: string;
+  dateOfBirth?: string;
+  profession?: string;
+  employer?: string;
+  nationalId?: string;
+  address?: string;
+  emergencyContact?: string;
+  emergencyPhone?: string;
+  submittedAt: Date | unknown;
 }
 
-/** Génère un token de sécurité (stocké dans le doc, vérifié à l'ouverture) */
-function generateToken(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  return Array.from({ length: 16 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-}
+// ── Collections ───────────────────────────────────────────────────────────────
 
-/** Crée une invitation à usage unique valide 7 jours.
- *  URL = /invitation/{orgId}/{docId} — lecture directe par ID, pas de requête where.
- */
+const invitationsCol = (orgId: string) =>
+  collection(db, "organizations", orgId, "tenantInvitations");
+
+const invitationDoc = (orgId: string, id: string) =>
+  doc(db, "organizations", orgId, "tenantInvitations", id);
+
+// Collection RACINE — allow create: if true
+const submissionsCol = () => collection(db, "tenantSubmissions");
+
+// ── Création d'invitation (propriétaire) ─────────────────────────────────────
+
 export async function createTenantInvitation(
   organizationId: string,
   tenantNameHint: string,
   tenantPhoneHint: string,
   actor?: Actor
 ): Promise<TenantInvitation> {
-  const token = generateToken(); // token de sécurité stocké dans le doc
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
-  const ref = await addDoc(invitationsCollection(organizationId), {
+  const ref = await addDoc(invitationsCol(organizationId), {
     organizationId,
     tenantNameHint: tenantNameHint.trim(),
     tenantPhoneHint: tenantPhoneHint.trim(),
-    token,
     status: "pending",
     expiresAt: expiresAt.toISOString(),
-    submittedData: null,
-    completedAt: null,
     createdBy: actor?.userId ?? null,
     createdAt: serverTimestamp()
   });
@@ -54,73 +93,102 @@ export async function createTenantInvitation(
   });
 
   return {
-    id: ref.id, // C'est l'ID du doc — utilisé dans l'URL
+    id: ref.id,
     organizationId,
     tenantNameHint,
     tenantPhoneHint,
-    token,
     status: "pending",
     expiresAt: expiresAt.toISOString(),
     createdAt: new Date()
   };
 }
 
-/** Liste toutes les invitations d'une organisation */
-export async function listTenantInvitations(organizationId: string): Promise<TenantInvitation[]> {
-  const q = query(invitationsCollection(organizationId), orderBy("createdAt", "desc"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TenantInvitation);
-}
+// ── Lecture d'une invitation par ID (page publique) ───────────────────────────
 
-/**
- * Récupère une invitation par son ID de document (getDoc direct — pas de where).
- * URL = /invitation/{orgId}/{invitationId}
- * Fonctionne côté serveur ET côté client, pas de règle list nécessaire.
- */
-export async function getInvitationById(organizationId: string, invitationId: string): Promise<TenantInvitation | null> {
-  const snap = await getDoc(invitationRef(organizationId, invitationId));
+export async function getInvitationById(
+  orgId: string,
+  invitationId: string
+): Promise<TenantInvitation | null> {
+  const snap = await getDoc(invitationDoc(orgId, invitationId));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as TenantInvitation;
 }
 
-/** Valide si une invitation est encore utilisable */
-export function isInvitationValid(invitation: TenantInvitation): boolean {
-  if (invitation.status !== "pending") return false;
-  return new Date(invitation.expiresAt) > new Date();
+// ── Validation d'une invitation ───────────────────────────────────────────────
+
+export function isInvitationValid(inv: TenantInvitation): boolean {
+  if (inv.status !== "pending") return false;
+  return new Date(inv.expiresAt) > new Date();
 }
 
-/** Soumet les données du formulaire par le locataire (public, sans auth) */
-export async function submitTenantInvitation(
+// ── Soumission du formulaire (locataire anonyme) ──────────────────────────────
+// Crée un NOUVEAU document dans tenantSubmissions (collection racine)
+// allow create: if true → aucune règle complexe, aucun risque de blocage
+
+export async function submitTenantForm(
   organizationId: string,
   invitationId: string,
-  data: TenantInvitationData
+  data: Omit<TenantSubmission, "id" | "invitationId" | "organizationId" | "submittedAt">
 ): Promise<void> {
-  await updateDoc(invitationRef(organizationId, invitationId), {
-    submittedData: data,
-    status: "completed",
-    completedAt: new Date().toISOString()
+  // 1. Crée la soumission dans la collection racine (écriture publique libre)
+  await addDoc(submissionsCol(), {
+    invitationId,
+    organizationId,
+    ...data,
+    submittedAt: serverTimestamp()
   });
+
+  // 2. Met à jour le statut de l'invitation (tentative — si ça échoue, pas grave)
+  // La soumission est déjà sauvegardée ci-dessus, ce n'est qu'une mise à jour cosmétique
+  try {
+    await updateDoc(invitationDoc(organizationId, invitationId), {
+      status: "submitted"
+    });
+  } catch {
+    // Silencieux — la soumission principale a réussi, c'est l'essentiel
+  }
 }
 
-/** Valide l'invitation et crée le dossier locataire */
-export async function approveInvitation(
+// ── Liste des soumissions en attente (dashboard propriétaire) ─────────────────
+
+export async function listPendingSubmissions(organizationId: string): Promise<TenantSubmission[]> {
+  const q = query(
+    submissionsCol(),
+    where("organizationId", "==", organizationId),
+    orderBy("submittedAt", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TenantSubmission);
+}
+
+// ── Liste des invitations (dashboard) ────────────────────────────────────────
+
+export async function listTenantInvitations(organizationId: string): Promise<TenantInvitation[]> {
+  const q = query(invitationsCol(organizationId), orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TenantInvitation);
+}
+
+// ── Validation d'une soumission → création dossier locataire ─────────────────
+
+export async function approveSubmission(
   organizationId: string,
-  invitation: TenantInvitation,
+  submission: TenantSubmission,
   actor?: Actor
 ): Promise<string> {
-  const data = invitation.submittedData!;
   const { createTenant } = await import("@/services/tenants");
+
   const ref = await createTenant(organizationId, {
-    fullName: data.displayName,
-    phone: data.phone,
-    email: data.email ?? "",
-    birthDate: data.dateOfBirth ?? "",
-    profession: data.profession ?? "",
-    employer: data.employer ?? "",
-    identityNumber: data.nationalId ?? "",
-    address: data.address ?? "",
-    emergencyContactName: data.emergencyContact ?? "",
-    emergencyContactPhone: data.emergencyPhone ?? "",
+    fullName: submission.displayName,
+    phone: submission.phone,
+    email: submission.email ?? "",
+    birthDate: submission.dateOfBirth ?? "",
+    profession: submission.profession ?? "",
+    employer: submission.employer ?? "",
+    identityNumber: submission.nationalId ?? "",
+    address: submission.address ?? "",
+    emergencyContactName: submission.emergencyContact ?? "",
+    emergencyContactPhone: submission.emergencyPhone ?? "",
     status: "active",
     notes: "",
     isDeleted: false,
@@ -128,10 +196,20 @@ export async function approveInvitation(
     deletedBy: null
   } as Parameters<typeof createTenant>[1], actor);
 
-  await updateDoc(invitationRef(organizationId, invitation.id), {
-    status: "expired",
-    approvedTenantId: ref.id
+  // Marquer la soumission comme traitée
+  await updateDoc(doc(db, "tenantSubmissions", submission.id), {
+    approvedTenantId: ref.id,
+    approvedAt: serverTimestamp()
   });
+
+  // Mettre à jour l'invitation
+  if (submission.invitationId) {
+    try {
+      await updateDoc(invitationDoc(organizationId, submission.invitationId), {
+        status: "approved"
+      });
+    } catch { /* silencieux */ }
+  }
 
   return ref.id;
 }

@@ -10,8 +10,6 @@ export default async function InvitationPage({
 }: {
   params: { orgId: string; token: string }
 }) {
-  // token ici = ID du document Firestore (le paramètre s'appelle token dans l'URL
-  // mais contient l'ID du document — getDoc direct, pas de requête where)
   const { orgId, token: invitationId } = params;
 
   let invitation = null;
