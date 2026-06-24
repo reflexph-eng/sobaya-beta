@@ -44,11 +44,15 @@ export const PERMISSIONS = {
   ADMIN_ACCESS: "admin.access"
 } as const;
 
-export const OWNER_PERMISSIONS = Object.values(PERMISSIONS);
+// ADMIN_ACCESS est un droit plateforme (globalRole), pas un droit organisation.
+// Le owner n'en a pas besoin — on l'exclut explicitement.
+export const OWNER_PERMISSIONS = Object.values(PERMISSIONS).filter(
+  (p) => p !== PERMISSIONS.ADMIN_ACCESS
+);
 
 export const ROLE_PERMISSIONS: Record<OrganizationRole, string[]> = {
   owner: OWNER_PERMISSIONS,
-  admin: OWNER_PERMISSIONS.filter((permission) => permission !== PERMISSIONS.ADMIN_ACCESS),
+  admin: [...OWNER_PERMISSIONS],
   manager: [
     PERMISSIONS.PROPERTIES_READ,
     PERMISSIONS.PROPERTIES_CREATE,
