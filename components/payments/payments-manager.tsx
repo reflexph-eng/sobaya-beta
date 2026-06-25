@@ -16,6 +16,7 @@ import { PERMISSIONS } from "@/constants/permissions";
 import { archivePayment, createPayment, listPayments, updatePayment } from "@/services/payments";
 import { computeRentSituations } from "@/services/rent-arrears";
 import { buildReceiptUrl, issueReceipt } from "@/services/receipts";
+import { getOrganization } from "@/services/organizations";
 import { listContracts } from "@/services/contracts";
 import type { Contract } from "@/types/contract";
 import type { Payment, PaymentFormValues, PaymentMethod, PaymentStatus } from "@/types/payment";
@@ -90,17 +91,17 @@ export function PaymentsManager() {
     const now = new Date();
     const month = now.getMonth();
     const year = now.getFullYear();
-    const validPayments = payments.filter((payment) => payment.status !== "cancelled");
-    const collected = validPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    const monthPayments = validPayments.filter((payment) => {
-      const date = new Date(payment.paymentDate);
+    const validPayments = payments.filter((p) => p.status !== "cancelled");
+    const collected = validPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const monthPayments = validPayments.filter((p) => {
+      const date = new Date(p.paymentDate);
       return date.getMonth() === month && date.getFullYear() === year;
     });
-    const monthlyCollected = monthPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    const rentSituations = computeRentSituations(contracts.filter((contract) => contract.status === "active"), validPayments, now);
-    const pendingContracts = rentSituations.filter((situation) => situation.totalDue > 0).length;
-    const lateContracts = rentSituations.filter((situation) => situation.status === "late" || situation.status === "partial").length;
-    const totalDue = rentSituations.reduce((sum, situation) => sum + situation.totalDue, 0);
+    const monthlyCollected = monthPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const rentSituations = computeRentSituations(contracts.filter((c) => c.status === "active"), validPayments, now);
+    const pendingContracts = rentSituations.filter((s) => s.totalDue > 0).length;
+    const lateContracts = rentSituations.filter((s) => s.status === "late" || s.status === "partial").length;
+    const totalDue = rentSituations.reduce((sum, s) => sum + s.totalDue, 0);
     return { collected, monthlyCollected, pendingContracts, lateContracts, totalDue };
   }, [payments, contracts]);
 
@@ -128,12 +129,27 @@ export function PaymentsManager() {
     if (!organization?.id) return;
     setError("");
     try {
-      // Idempotent: republie la quittance publique si elle manque déjà, sans casser le paiement existant.
-      await issueReceipt(organization.id, payment, { userId: firebaseUser?.uid, userName: profile?.displayName });
+      // Toujours relire l'organisation fraîche depuis Firestore au moment
+      // de la génération — garantit que receiptDisplayName est à jour
+      // même si le contexte Auth n'a pas encore été rafraîchi.
+      const freshOrganization = await getOrganization(organization.id);
+
+      await issueReceipt(
+        organization.id,
+        payment,
+        { userId: firebaseUser?.uid, userName: profile?.displayName },
+        freshOrganization ?? organization
+      );
+
       await refresh();
+
+      // Délai court pour que Firestore propage l'écriture
+      // avant que la page publique ne relise le document.
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
       window.open(buildReceiptUrl(payment.receiptNumber), "_blank", "noopener,noreferrer");
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       setError("Ouverture de la quittance impossible. Vérifiez les règles Firestore et la publication publique.");
     }
   }
@@ -171,7 +187,7 @@ export function PaymentsManager() {
         </div>
 
         {contracts.length === 0 ? (
-          <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Créez d’abord un contrat actif avant d’enregistrer un paiement.</p>
+          <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Créez d&apos;abord un contrat actif avant d&apos;enregistrer un paiement.</p>
         ) : null}
 
         {showForm ? (

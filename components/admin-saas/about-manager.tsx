@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, Image } from "lucide-react";
+import NextImage from "next/image";
+import { Save, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
@@ -59,7 +60,7 @@ export function AboutManager() {
 
       {/* Photos */}
       <Card>
-        <p className="mb-4 flex items-center gap-2 font-medium text-sobaya-ink"><Image size={16} /> Photos</p>
+        <p className="mb-4 flex items-center gap-2 font-medium text-sobaya-ink"><ImageIcon size={16} /> Photos</p>
         <div className="rounded-xl border border-sobaya-border bg-sobaya-soft p-4 mb-4 text-sm text-sobaya-muted">
           Dépose tes images dans <code className="bg-white rounded px-1">public/about/</code>, puis saisis le chemin ici.
           Exemple : <code className="bg-white rounded px-1">/about/fondateur.jpg</code>
@@ -68,7 +69,7 @@ export function AboutManager() {
           {photoFields.map((f) => (
             <div key={f.key}>
               {(content[f.key] as string) && (
-                <img src={content[f.key] as string} alt={f.label} className="mb-2 h-24 w-full rounded-xl object-cover border border-sobaya-border" />
+                <NextImage src={(content[f.key] as string) || "/about/hero.svg"} alt={f.label} className="mb-2 h-24 w-full rounded-xl object-cover border border-sobaya-border" width={300} height={96} />
               )}
               <FormField label={f.label} help={f.help} key={f.key}>
                 <Input value={(content[f.key] as string) ?? ""} onChange={(e) => update(f.key, e.target.value)} />

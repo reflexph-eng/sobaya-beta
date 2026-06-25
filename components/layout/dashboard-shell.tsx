@@ -25,7 +25,7 @@ const navGroups: NavGroup[] = [
   { label: "Tableau de bord", icon: LayoutDashboard, defaultOpen: true, items: [{ href: "/dashboard", label: "Vue générale", icon: LayoutDashboard, permission: null }] },
   { label: "Gestion locative", icon: Home, defaultOpen: true, items: [
     { href: "/biens", label: "Biens", icon: Home, permission: PERMISSIONS.PROPERTIES_READ, module: "biens" },
-    { href: "/proprietaires", label: "Propriétaires mandants", icon: UserRoundCheck, permission: PERMISSIONS.PROPERTIES_READ, module: "proprietaires" },
+    { href: "/proprietaires", label: "Propriétaires mandants", icon: UserRoundCheck, permission: PERMISSIONS.PROPERTIES_MANDANTS, module: "proprietaires" },
     { href: "/locataires", label: "Locataires", icon: Users, permission: PERMISSIONS.TENANTS_READ, module: "locataires" },
     { href: "/contrats", label: "Contrats", icon: FileText, permission: PERMISSIONS.CONTRACTS_READ, module: "contrats" },
     { href: "/reservations", label: "Réservations", icon: CalendarRange, permission: PERMISSIONS.BOOKINGS_READ, module: "reservations" }
@@ -54,8 +54,10 @@ const navGroups: NavGroup[] = [
     { href: "/admin/about", label: "Page À propos", icon: FileText, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/badges", label: "Badges confiance", icon: Award, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/roles", label: "Rôles globaux", icon: Shield, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/archives", label: "Archives", icon: Archive, permission: PERMISSIONS.ARCHIVES_MANAGE },
-    { href: "/admin/logs", label: "Journal", icon: ClipboardList, permission: PERMISSIONS.LOGS_READ },
+    { href: "/admin/archives", label: "Archives", icon: Archive, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/logs", label: "Journal", icon: ClipboardList, permission: PERMISSIONS.ADMIN_ACCESS },
+  ] },
+  { label: "Mon compte", icon: UserCircle, defaultOpen: true, items: [
     { href: "/organisation", label: "Paramètres", icon: Settings, permission: PERMISSIONS.SETTINGS_MANAGE },
     { href: "/profil", label: "Profil", icon: UserCircle, permission: null }
   ] }

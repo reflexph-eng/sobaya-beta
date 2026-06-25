@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { getPermissionsForRole } from "@/lib/permissions";
 import type { DashboardSettings, Organization, OrganizationMember, OrganizationType, SubscriptionPlan } from "@/types/organization";
@@ -52,6 +52,29 @@ export async function updateOrganizationName(organizationId: string, name: strin
   });
 }
 
+export async function updateOrganizationSettings(
+  organizationId: string,
+  updates: { name?: string; receiptDisplayName?: string }
+) {
+  // Construction explicite de l'objet Firestore — évite le pattern `...false`
+  // qui cause une erreur Firestore quand la condition est fausse.
+  const payload: Record<string, unknown> = {
+    updatedAt: serverTimestamp()
+  };
+
+  if (updates.name !== undefined) {
+    payload.name = updates.name.trim();
+  }
+
+  if (updates.receiptDisplayName !== undefined) {
+    // Si la valeur est vide, on supprime le champ en base (deleteField).
+    // Cela force le fallback sur organization.name côté receipts.ts.
+    const trimmed = updates.receiptDisplayName.trim();
+    payload.receiptDisplayName = trimmed !== "" ? trimmed : deleteField();
+  }
+
+  await updateDoc(doc(db, "organizations", organizationId), payload);
+}
 
 export async function updateOrganizationDashboardSettings(organizationId: string, dashboardSettings: DashboardSettings) {
   await updateDoc(doc(db, "organizations", organizationId), {

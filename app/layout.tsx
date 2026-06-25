@@ -11,6 +11,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://sobaya.ci"),
   title: "SOBAYA — Gestion Immobilière",
   description: "Votre patrimoine immobilier sous contrôle. Gérez vos biens, locataires, contrats et paiements.",
   manifest: "/manifest.json",

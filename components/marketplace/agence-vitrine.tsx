@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import Link from "next/link";
 import { Home, MapPin, MessageCircle, Phone } from "lucide-react";
@@ -83,11 +84,7 @@ export function AgenceVitrine({
             >
               <div className="relative aspect-[4/3] w-full overflow-hidden bg-sobaya-soft">
                 {listing.photoGallery?.[0] ? (
-                  <img
-                    src={listing.photoGallery[0].url}
-                    alt={listing.title}
-                    className="h-full w-full object-cover transition group-hover:scale-105"
-                  />
+                  <Image src={listing.photoGallery[0].url} alt={listing.title} className="h-full w-full object-cover transition group-hover:scale-105" fill unoptimized />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sobaya-muted">
                     <Home size={32} />

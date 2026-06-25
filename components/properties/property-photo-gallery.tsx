@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { Star, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { addPropertyPhoto, removePropertyPhoto, setPropertyPrimaryPhoto } from "@/services/properties";
@@ -87,7 +88,7 @@ export function PropertyPhotoGallery({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {gallery.map((photo) => (
             <div key={photo.id} className="group relative overflow-hidden rounded-xl border border-sobaya-border">
-              <img src={photo.url} alt={property.name} className="h-28 w-full object-cover sm:h-32" />
+              <Image src={photo.url} alt={property.name} className="h-28 w-full object-cover sm:h-32" fill unoptimized />
               {photo.isPrimary ? (
                 <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-sobaya-primary px-2 py-0.5 text-[11px] font-medium text-white">
                   <Star size={11} /> Principale

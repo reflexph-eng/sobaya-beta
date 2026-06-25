@@ -8,6 +8,8 @@ import { buildReceiptUrl, getPublicReceipt, type PublicReceipt } from "@/service
 import { ReceiptQrCode } from "@/components/receipts/qr-code";
 import { BrandLogo } from "@/components/layout/brand-logo";
 
+const FALLBACK_ISSUER = "Gestionnaire non renseigné";
+
 const methodLabels: Record<string, string> = {
   cash: "Espèces",
   orange_money: "Orange Money",
@@ -29,13 +31,27 @@ function qrImageUrl(value: string) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(value)}`;
 }
 
+/**
+ * Résout le nom de l'émetteur pour l'affichage.
+ * Protège contre les quittances historiques dont organizationName
+ * était absent ou valait "SOBAYA".
+ */
+function resolveDisplayIssuer(receipt: PublicReceipt): string {
+  const name = receipt.organizationName?.trim();
+  if (name && name !== "SOBAYA") return name;
+  return FALLBACK_ISSUER;
+}
+
 function downloadPrintableReceipt(receipt: PublicReceipt, verifyUrl: string) {
+  const issuerName = resolveDisplayIssuer(receipt);
   const periodLabel = receipt.periodLabel || "Période non renseignée";
   const expectedAmount = Number(receipt.expectedAmount) || Number(receipt.amount) || 0;
   const remainingBalance = Number(receipt.remainingBalance) || 0;
   const overpaidAmount = Number(receipt.overpaidAmount) || 0;
+
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${safeText(receipt.receiptNumber)}</title><style>
-  body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f6f7f5;color:#102019}.page{max-width:850px;margin:30px auto;background:white;padding:36px;border:1px solid #dde5dd}.top{display:flex;justify-content:space-between;gap:24px;border-bottom:3px solid #0b6b4b;padding-bottom:24px}.brand{font-size:28px;font-weight:800;letter-spacing:4px;color:#0b6b4b}.title{margin-top:28px;font-size:30px;font-weight:800}.badge{border:1px solid #b7dec9;background:#eefaf2;color:#145c35;padding:12px 16px;border-radius:14px;font-weight:700}.period{margin-top:18px;border:1px solid #b7dec9;background:#f0faf4;border-radius:16px;padding:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:28px 0}.box{border:1px solid #e2e8e2;border-radius:14px;padding:16px}.label{font-size:11px;text-transform:uppercase;color:#6b756f;letter-spacing:1.5px}.value{margin-top:6px;font-size:16px;font-weight:700}.amount{font-size:30px;color:#0b6b4b}.table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #e2e8e2;padding:12px;text-align:left}th{background:#f6f7f5;font-size:12px;text-transform:uppercase;color:#6b756f}.verify{display:flex;justify-content:space-between;gap:24px;align-items:center;margin-top:26px;border:1px solid #e2e8e2;border-radius:16px;padding:18px;background:#f8faf8}.qr{width:150px;height:150px;border:1px solid #e2e8e2;padding:8px;background:white}.foot{margin-top:24px;font-size:12px;color:#6b756f;line-height:1.7}@media print{body{background:white}.page{margin:0;max-width:none;border:0}}</style></head><body><main class="page"><div class="top"><div><div class="brand">SOBAYA</div><div style="margin-top:8px;color:#6b756f">Votre patrimoine. Sous contrôle.</div></div><div class="badge">Quittance valide<br><small>Code : ${safeText(receipt.verificationCode)}</small></div></div><div class="title">QUITTANCE DE LOYER</div><section class="period"><div class="label">Période couverte</div><div class="value">${safeText(periodLabel)}</div></section><div class="grid"><div class="box"><div class="label">Numéro</div><div class="value">${safeText(receipt.receiptNumber)}</div></div><div class="box"><div class="label">Date du paiement</div><div class="value">${safeText(receipt.paymentDate)}</div></div><div class="box"><div class="label">Locataire</div><div class="value">${safeText(receipt.tenantName)}</div></div><div class="box"><div class="label">Bien loué</div><div class="value">${safeText(receipt.propertyName)}</div></div><div class="box"><div class="label">Contrat</div><div class="value">${safeText(receipt.contractNumber)}</div></div><div class="box"><div class="label">Montant reçu</div><div class="value amount">${money(receipt.amount)}</div></div></div><table class="table"><thead><tr><th>Désignation</th><th>Période</th><th>Attendu</th><th>Reçu</th><th>Solde</th></tr></thead><tbody><tr><td>Paiement de loyer</td><td>${safeText(periodLabel)}</td><td>${money(expectedAmount)}</td><td>${money(receipt.amount)}</td><td>${remainingBalance > 0 ? money(remainingBalance) : overpaidAmount > 0 ? `Trop-perçu ${money(overpaidAmount)}` : "Soldé"}</td></tr></tbody></table><table class="table"><tbody><tr><th>Mode</th><td>${safeText(methodLabels[receipt.paymentMethod] ?? receipt.paymentMethod)}</td><th>Référence</th><td>${safeText(receipt.reference || "Non renseignée")}</td></tr></tbody></table><section class="verify"><div><strong>Vérification publique</strong><p>${safeText(verifyUrl)}</p></div><img class="qr" src="${qrImageUrl(verifyUrl)}" alt="QR Code de vérification"></section><p class="foot">Cette quittance est générée par SOBAYA. Elle peut être vérifiée avec le QR code ou le lien public ci-dessus.</p></main></body></html>`;
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f6f7f5;color:#102019}.page{max-width:850px;margin:30px auto;background:white;padding:36px;border:1px solid #dde5dd}.top{display:flex;justify-content:space-between;gap:24px;border-bottom:3px solid #0b6b4b;padding-bottom:24px}.brand{font-size:28px;font-weight:800;letter-spacing:4px;color:#0b6b4b}.title{margin-top:28px;font-size:30px;font-weight:800}.badge{border:1px solid #b7dec9;background:#eefaf2;color:#145c35;padding:12px 16px;border-radius:14px;font-weight:700}.period{margin-top:18px;border:1px solid #b7dec9;background:#f0faf4;border-radius:16px;padding:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:28px 0}.box{border:1px solid #e2e8e2;border-radius:14px;padding:16px}.label{font-size:11px;text-transform:uppercase;color:#6b756f;letter-spacing:1.5px}.value{margin-top:6px;font-size:16px;font-weight:700}.amount{font-size:30px;color:#0b6b4b}.table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #e2e8e2;padding:12px;text-align:left}th{background:#f6f7f5;font-size:12px;text-transform:uppercase;color:#6b756f}.verify{display:flex;justify-content:space-between;gap:24px;align-items:center;margin-top:26px;border:1px solid #e2e8e2;border-radius:16px;padding:18px;background:#f8faf8}.qr{width:150px;height:150px;border:1px solid #e2e8e2;padding:8px;background:white}.foot{margin-top:24px;font-size:12px;color:#6b756f;line-height:1.7}@media print{body{background:white}.page{margin:0;max-width:none;border:0}}</style></head><body><main class="page"><div class="top"><div><div class="brand">${safeText(issuerName)}</div><div style="margin-top:8px;color:#6b756f">Votre patrimoine. Sous contrôle.</div></div><div class="badge">Quittance valide<br><small>Code : ${safeText(receipt.verificationCode)}</small></div></div><div class="title">QUITTANCE DE LOYER</div><section class="period"><div class="label">Période couverte</div><div class="value">${safeText(periodLabel)}</div></section><div class="grid"><div class="box"><div class="label">Numéro</div><div class="value">${safeText(receipt.receiptNumber)}</div></div><div class="box"><div class="label">Date du paiement</div><div class="value">${safeText(receipt.paymentDate)}</div></div><div class="box"><div class="label">Locataire</div><div class="value">${safeText(receipt.tenantName)}</div></div><div class="box"><div class="label">Bien loué</div><div class="value">${safeText(receipt.propertyName)}</div></div><div class="box"><div class="label">Contrat</div><div class="value">${safeText(receipt.contractNumber)}</div></div><div class="box"><div class="label">Montant reçu</div><div class="value amount">${money(receipt.amount)}</div></div></div><table class="table"><thead><tr><th>Désignation</th><th>Période</th><th>Attendu</th><th>Reçu</th><th>Solde</th></tr></thead><tbody><tr><td>Paiement de loyer</td><td>${safeText(periodLabel)}</td><td>${money(expectedAmount)}</td><td>${money(receipt.amount)}</td><td>${remainingBalance > 0 ? money(remainingBalance) : overpaidAmount > 0 ? `Trop-perçu ${money(overpaidAmount)}` : "Soldé"}</td></tr></tbody></table><table class="table"><tbody><tr><th>Mode</th><td>${safeText(methodLabels[receipt.paymentMethod] ?? receipt.paymentMethod)}</td><th>Référence</th><td>${safeText(receipt.reference || "Non renseignée")}</td></tr></tbody></table><section class="verify"><div><strong>Vérification publique</strong><p>${safeText(verifyUrl)}</p></div><img class="qr" src="${qrImageUrl(verifyUrl)}" alt="QR Code de vérification"></section><p class="foot">Cette quittance a été émise par ${safeText(issuerName)}. Elle peut être vérifiée avec le QR code ou le lien public ci-dessus.</p></main></body></html>`;
+
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -51,14 +67,22 @@ export function PublicReceiptView({ receiptNumber }: { receiptNumber: string }) 
   const [error, setError] = useState("");
   const verifyUrl = useMemo(() => buildReceiptUrl(receipt?.receiptNumber ?? receiptNumber), [receipt?.receiptNumber, receiptNumber]);
 
+  // Charge la quittance fraîche depuis Firestore à chaque ouverture de la page
   useEffect(() => {
+    setLoading(true);
     getPublicReceipt(receiptNumber)
       .then(setReceipt)
       .catch(() => setError("Quittance introuvable ou non encore publiée."))
       .finally(() => setLoading(false));
   }, [receiptNumber]);
 
-  if (loading) return <main className="min-h-screen bg-white p-6 text-sobaya-ink"><p>Chargement de la quittance...</p></main>;
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-white p-6 text-sobaya-ink">
+        <p>Chargement de la quittance...</p>
+      </main>
+    );
+  }
 
   if (error || !receipt) {
     return (
@@ -74,6 +98,9 @@ export function PublicReceiptView({ receiptNumber }: { receiptNumber: string }) 
     );
   }
 
+  // Nom résolu une fois pour toute la vue et le téléchargement
+  const issuerName = resolveDisplayIssuer(receipt);
+
   return (
     <main className="min-h-screen bg-sobaya-soft p-4 text-sobaya-ink print:bg-white print:p-0">
       <div className="mx-auto max-w-4xl space-y-4 print:max-w-none print:space-y-0">
@@ -83,7 +110,9 @@ export function PublicReceiptView({ receiptNumber }: { receiptNumber: string }) 
             <h1 className="mt-3 text-2xl font-semibold">Vérification de quittance</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => downloadPrintableReceipt(receipt, verifyUrl)}><Download size={16} /> Télécharger</Button>
+            <Button variant="secondary" onClick={() => downloadPrintableReceipt(receipt, verifyUrl)}>
+              <Download size={16} /> Télécharger
+            </Button>
             <Button onClick={() => window.print()}><Printer size={16} /> Imprimer / PDF</Button>
           </div>
         </div>
@@ -121,8 +150,7 @@ export function PublicReceiptView({ receiptNumber }: { receiptNumber: string }) 
                 </section>
                 <section className="rounded-2xl border border-sobaya-border p-5">
                   <p className="text-xs uppercase tracking-[0.18em] text-sobaya-muted">Émetteur</p>
-                  <h3 className="mt-2 text-xl font-semibold">SOBAYA</h3>
-                  <p className="mt-3 text-sm text-sobaya-muted">Quittance générée depuis l’espace propriétaire.</p>
+                  <h3 className="mt-2 text-xl font-semibold">{issuerName}</h3>
                 </section>
               </div>
 
@@ -143,7 +171,13 @@ export function PublicReceiptView({ receiptNumber }: { receiptNumber: string }) 
                       <td className="px-4 py-4">{receipt.periodLabel || "Période non renseignée"}</td>
                       <td className="px-4 py-4 text-right">{money(Number(receipt.expectedAmount) || receipt.amount)}</td>
                       <td className="px-4 py-4 text-right text-lg font-semibold">{money(receipt.amount)}</td>
-                      <td className="px-4 py-4 text-right">{Number(receipt.remainingBalance) > 0 ? money(Number(receipt.remainingBalance)) : Number(receipt.overpaidAmount) > 0 ? `Trop-perçu ${money(Number(receipt.overpaidAmount))}` : "Soldé"}</td>
+                      <td className="px-4 py-4 text-right">
+                        {Number(receipt.remainingBalance) > 0
+                          ? money(Number(receipt.remainingBalance))
+                          : Number(receipt.overpaidAmount) > 0
+                          ? `Trop-perçu ${money(Number(receipt.overpaidAmount))}`
+                          : "Soldé"}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -158,7 +192,9 @@ export function PublicReceiptView({ receiptNumber }: { receiptNumber: string }) 
                 <ReceiptQrCode value={verifyUrl} />
               </div>
 
-              <p className="mt-5 text-xs leading-6 text-sobaya-muted">Cette quittance est générée par SOBAYA. Le QR code permet de vérifier publiquement son authenticité.</p>
+              <p className="mt-5 text-xs leading-6 text-sobaya-muted">
+                Cette quittance a été émise par <strong>{issuerName}</strong>. Le QR code permet de vérifier publiquement son authenticité.
+              </p>
             </div>
           </div>
         </Card>

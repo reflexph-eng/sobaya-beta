@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Home, MessageCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,7 @@ export function ListingDetail({ listing }: { listing: PublicListing }) {
         <div>
           <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-sobaya-soft">
             {photos[activePhoto] ? (
-              <img src={photos[activePhoto].url} alt={listing.title} className="h-full w-full object-cover" />
+              <Image src={photos[activePhoto].url} alt={listing.title} className="h-full w-full object-cover" fill unoptimized />
             ) : (
               <div className="flex h-full items-center justify-center text-sobaya-muted"><Home size={40} /></div>
             )}
@@ -78,7 +79,7 @@ export function ListingDetail({ listing }: { listing: PublicListing }) {
             <div className="mt-3 grid grid-cols-6 gap-2">
               {photos.map((photo, index) => (
                 <button key={photo.id} type="button" onClick={() => setActivePhoto(index)} className={`aspect-square overflow-hidden rounded-lg border-2 ${index === activePhoto ? "border-sobaya-primary" : "border-transparent"}`}>
-                  <img src={photo.url} alt="" className="h-full w-full object-cover" />
+                  <Image src={photo.url} alt="" className="h-full w-full object-cover" fill unoptimized />
                 </button>
               ))}
             </div>

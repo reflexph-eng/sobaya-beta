@@ -95,7 +95,7 @@ export default function ContactPage() {
                   <MessageCircle size={18} className="mt-0.5 shrink-0 text-sobaya-primary" />
                   <div>
                     <p className="font-medium text-sobaya-ink">WhatsApp</p>
-                    <a href="https://wa.me/2250000000000" target="_blank" rel="noreferrer" className="text-sobaya-primary hover:underline mt-0.5 block">
+                    <a href="https://wa.me/2250700000000" target="_blank" rel="noreferrer" className="text-sobaya-primary hover:underline mt-0.5 block">
                       Écrire sur WhatsApp →
                     </a>
                   </div>
@@ -166,7 +166,7 @@ export default function ContactPage() {
                 </Button>
                 <p className="text-center text-xs text-sobaya-muted">
                   Ou écrivez-nous directement sur{" "}
-                  <a href="https://wa.me/2250000000000" target="_blank" rel="noreferrer" className="text-sobaya-primary underline">WhatsApp</a>
+                  <a href="https://wa.me/2250700000000" target="_blank" rel="noreferrer" className="text-sobaya-primary underline">WhatsApp</a>
                 </p>
               </form>
             )}

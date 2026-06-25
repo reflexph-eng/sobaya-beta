@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { List } from "lucide-react";
@@ -59,7 +60,7 @@ export function MarketplaceMapView({ listings }: { listings: PublicListing[] }) 
         {selected ? (
           <div className="w-72 shrink-0 overflow-y-auto border-l border-sobaya-border bg-white p-4">
             {selected.photoGallery[0] ? (
-              <img src={selected.photoGallery[0].url} alt={selected.title} className="h-40 w-full rounded-xl object-cover" />
+              <Image src={selected.photoGallery[0].url} alt={selected.title} className="h-40 w-full rounded-xl object-cover" fill unoptimized />
             ) : null}
             <p className="mt-3 font-medium text-sobaya-ink">{selected.title}</p>
             <p className="mt-1 text-sm text-sobaya-muted">{selected.commune ? `${selected.commune}, ` : ""}{selected.city}</p>

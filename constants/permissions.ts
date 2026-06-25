@@ -5,6 +5,7 @@ export const PERMISSIONS = {
   PROPERTIES_CREATE: "properties.create",
   PROPERTIES_UPDATE: "properties.update",
   PROPERTIES_DELETE: "properties.delete",
+  PROPERTIES_MANDANTS: "properties.mandants",
   TENANTS_READ: "tenants.read",
   TENANTS_CREATE: "tenants.create",
   TENANTS_UPDATE: "tenants.update",

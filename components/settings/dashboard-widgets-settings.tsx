@@ -16,11 +16,12 @@ const profiles: { key: DashboardProfileKey; label: string; help: string }[] = [
 ];
 
 export function DashboardWidgetsSettings() {
-  const { organization, member, refreshSession } = useAuth();
+  const { organization, member, profile, refreshSession } = useAuth();
   const [activeProfile, setActiveProfile] = useState<DashboardProfileKey>("owner");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const canEdit = member?.permissions.includes("settings.manage");
+  // Seul le super admin peut voir et modifier la configuration des rubriques
+  const canEdit = profile?.globalRole === "super_admin";
 
   const initialWidgets = useMemo(() => {
     return profiles.reduce((acc, profile) => {
@@ -34,6 +35,9 @@ export function DashboardWidgetsSettings() {
   useEffect(() => {
     setSelected(initialWidgets);
   }, [initialWidgets]);
+
+  // Masquer complètement pour les non-super-admins (après les hooks)
+  if (!canEdit) return null;
 
   function toggleWidget(profile: DashboardProfileKey, widget: DashboardWidgetKey) {
     setSelected((current) => {

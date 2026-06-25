@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Download, X } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -19,10 +20,10 @@ export function PwaManager() {
       navigator.serviceWorker
         .register("/sw.js")
         .then((registration) => {
-          console.log("SOBAYA SW enregistré:", registration.scope);
+          
         })
         .catch((err) => {
-          console.warn("SW non enregistré:", err);
+          
         });
     }
 
@@ -69,7 +70,7 @@ export function PwaManager() {
         <X size={16} />
       </button>
       <div className="flex items-start gap-3">
-        <img src="/icons/icon-96x96.png" alt="SOBAYA" className="h-12 w-12 rounded-xl" />
+        <Image src="/icons/icon-96x96.png" alt="SOBAYA" className="h-12 w-12 rounded-xl" width={48} height={48} />
         <div>
           <p className="text-sm font-semibold text-sobaya-ink">Installer SOBAYA</p>
           <p className="mt-0.5 text-xs text-sobaya-muted">Accédez à votre tableau de bord directement depuis votre écran d&apos;accueil.</p>

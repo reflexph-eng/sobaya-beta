@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { addMaintenanceTicketPhoto, removeMaintenanceTicketPhoto } from "@/services/maintenance";
@@ -74,7 +75,7 @@ export function MaintenanceTicketPhotos({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {photos.map((photo) => (
             <div key={photo.id} className="group relative overflow-hidden rounded-xl border border-sobaya-border">
-              <img src={photo.url} alt="Photo de l'incident" className="h-24 w-full object-cover" />
+              <Image src={photo.url} alt="Photo de l'incident" className="h-24 w-full object-cover" fill unoptimized />
               {canEdit ? (
                 <div className="absolute inset-x-0 bottom-0 flex items-center justify-end bg-black/40 px-2 py-1 opacity-0 transition group-hover:opacity-100">
                   <button type="button" title="Supprimer" onClick={() => handleRemove(photo.id)} className="rounded-md bg-white/90 p-1.5 text-red-600 hover:bg-white">

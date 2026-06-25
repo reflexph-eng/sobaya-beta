@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getAboutContent } from "@/services/about";
 import { DEFAULT_ABOUT_CONTENT } from "@/types/about";
@@ -54,10 +55,12 @@ export function AboutPage() {
               </div>
             </div>
             <div className="relative">
-              <img
+              <Image
                 src={content.heroImage}
                 alt="SOBAYA plateforme"
                 className="w-full rounded-2xl object-cover shadow-xl"
+                width={800}
+                height={400}
                 style={{ maxHeight: "400px" }}
               />
             </div>
@@ -83,11 +86,12 @@ export function AboutPage() {
         <div className="mx-auto max-w-screen-xl px-5">
           <div className="grid gap-14 md:grid-cols-2 md:items-center">
             <div>
-              <img
+              <Image
                 src={content.fondateurPhoto}
                 alt={content.fondateurNom}
                 className="w-full max-w-sm rounded-2xl object-cover shadow-lg mx-auto"
-                style={{ aspectRatio: "1/1" }}
+                width={400}
+                height={400}
               />
             </div>
             <div>
@@ -117,7 +121,7 @@ export function AboutPage() {
               </div>
               <div className="mt-6 flex items-center gap-4">
                 <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-sobaya-primary">
-                  <img src={content.fondateurPhoto} alt={content.fondateurNom} className="h-full w-full object-cover" />
+                  <Image src={content.fondateurPhoto} alt={content.fondateurNom} className="h-full w-full object-cover" width={48} height={48} />
                 </div>
                 <div>
                   <p className="font-semibold text-sobaya-ink">{content.fondateurNom}</p>
@@ -163,11 +167,12 @@ export function AboutPage() {
               </div>
             </div>
             <div>
-              <img
+              <Image
                 src={content.missionImage}
                 alt="Abidjan Côte d&apos;Ivoire"
                 className="w-full rounded-2xl object-cover shadow-lg"
-                style={{ maxHeight: "420px" }}
+                width={800}
+                height={420}
               />
             </div>
           </div>
@@ -187,7 +192,7 @@ export function AboutPage() {
                 <div key={t.id} className="rounded-2xl border border-sobaya-border bg-sobaya-soft p-6">
                   <p className="text-sobaya-muted leading-relaxed italic">« {t.texte} »</p>
                   <div className="mt-5 flex items-center gap-3">
-                    <img src={t.photo} alt={t.nom} className="h-11 w-11 rounded-full object-cover border-2 border-sobaya-primary" />
+                    <Image src={t.photo} alt={t.nom} className="h-11 w-11 rounded-full object-cover border-2 border-sobaya-primary" width={44} height={44} />
                     <div>
                       <p className="font-semibold text-sobaya-ink text-sm">{t.nom}</p>
                       <p className="text-xs text-sobaya-muted">{t.titre}</p>

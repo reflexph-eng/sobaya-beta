@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Image, Save } from "lucide-react";
+import NextImage from "next/image";
+import { Image as ImageIcon, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -98,7 +99,7 @@ export function AdSpotsManager() {
           <Card key={slot}>
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="font-medium text-sobaya-ink flex items-center gap-2"><Image size={16} /> {AD_SPOT_LABELS[slot]}</p>
+                <p className="font-medium text-sobaya-ink flex items-center gap-2"><ImageIcon size={16} /> {AD_SPOT_LABELS[slot]}</p>
                 <p className="mt-1 text-xs text-sobaya-muted">{AD_SPOT_DIMENSIONS[slot]}</p>
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -114,7 +115,7 @@ export function AdSpotsManager() {
 
             {forms[slot].imageUrl ? (
               <div className="mb-3 overflow-hidden rounded-lg border border-sobaya-border">
-                <img src={forms[slot].imageUrl} alt="Aperçu" className="max-h-32 w-full object-contain bg-gray-50" />
+                <NextImage src={forms[slot].imageUrl} alt="Aperçu" className="max-h-32 w-full object-contain bg-gray-50" width={400} height={300} unoptimized />
               </div>
             ) : null}
 

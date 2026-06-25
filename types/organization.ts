@@ -34,6 +34,8 @@ export type DashboardSettings = {
 export type Organization = {
   id: string;
   name: string;
+  /** Nom affiché sur les quittances et documents. Si vide, utilise `name`. */
+  receiptDisplayName?: string;
   type: OrganizationType;
   subscriptionPlan: SubscriptionPlan;
   subscriptionStatus: SubscriptionStatus;

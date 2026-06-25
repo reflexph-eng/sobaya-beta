@@ -2,10 +2,12 @@ import { doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { createActivityLog, type Actor } from "@/services/activity-logs";
 import type { Payment } from "@/types/payment";
+import type { Organization } from "@/types/organization";
 
 export type PublicReceipt = {
   receiptNumber: string;
   organizationId: string;
+  organizationName: string;
   paymentId: string;
   contractId: string;
   contractNumber: string;
@@ -29,6 +31,19 @@ export type PublicReceipt = {
   receiptPdfUrl?: string;
 };
 
+/**
+ * Résout le nom de l'émetteur à afficher sur la quittance.
+ * Ordre de priorité :
+ *   1. organization.receiptDisplayName (nom commercial configuré dans Paramètres)
+ *   2. organization.name (nom de l'organisation)
+ *   3. "Gestionnaire non renseigné" — jamais "SOBAYA"
+ */
+export function resolveIssuerName(organization: Organization | null | undefined): string {
+  if (!organization) return "Gestionnaire non renseigné";
+  const name = organization.receiptDisplayName?.trim() || organization.name?.trim();
+  return name || "Gestionnaire non renseigné";
+}
+
 function paymentRef(organizationId: string, paymentId: string) {
   return doc(db, "organizations", organizationId, "payments", paymentId);
 }
@@ -49,15 +64,29 @@ export function buildReceiptUrl(receiptNumber: string) {
   return `${window.location.origin}/receipt/${receiptNumber}`;
 }
 
-export async function issueReceipt(organizationId: string, payment: Payment, actor?: Actor) {
+/**
+ * Émet ou réemet une quittance.
+ * - organizationName est TOUJOURS écrit en Firestore (jamais undefined).
+ * - merge: true préserve les autres champs existants mais écrase organizationName.
+ */
+export async function issueReceipt(
+  organizationId: string,
+  payment: Payment,
+  actor?: Actor,
+  organization?: Organization | null
+) {
   const verificationCode = payment.verificationCode || makeVerificationCode(payment.receiptNumber, payment.id);
   const issuedAt = payment.receiptIssuedAt ?? serverTimestamp();
   const issuedBy = payment.receiptIssuedBy ?? actor?.userId ?? null;
   const receiptPdfUrl = buildReceiptUrl(payment.receiptNumber);
 
+  // Résolution du nom — toujours une string, jamais undefined ni "SOBAYA"
+  const organizationName = resolveIssuerName(organization);
+
   const publicPayload: PublicReceipt = {
     receiptNumber: payment.receiptNumber,
     organizationId,
+    organizationName,          // Toujours écrit, jamais undefined
     paymentId: payment.id,
     contractId: payment.contractId,
     contractNumber: payment.contractNumber,
@@ -92,10 +121,13 @@ export async function issueReceipt(organizationId: string, payment: Payment, act
 
   const batch = writeBatch(db);
   batch.update(paymentRef(organizationId, payment.id), paymentPayload);
-  batch.set(publicReceiptRef(payment.receiptNumber), {
-    ...publicPayload,
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  // merge: true préserve les champs non présents dans le payload (QR code, etc.)
+  // mais organizationName étant explicitement fourni, il sera TOUJOURS mis à jour
+  batch.set(
+    publicReceiptRef(payment.receiptNumber),
+    { ...publicPayload, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
   await batch.commit();
 
   await createActivityLog(organizationId, {
