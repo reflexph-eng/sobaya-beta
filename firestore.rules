@@ -228,6 +228,28 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // Paramètres de la plateforme — lecture publique, écriture super admin
+    match /platformSettings/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Pages légales éditables — lecture publique, écriture super admin
+    match /legalPages/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Contenu éditorial marketplace — lecture publique, écriture super admin
+    match /marketplaceRubriques/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+    match /marketplaceArticles/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
     // Page Contact — soumissions publiques
     match /contactRequests/{docId} {
       allow create: if true;

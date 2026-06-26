@@ -51,10 +51,7 @@ function computeManagementFee(amount: number, feeType?: string, feeValue?: numbe
 }
 
 function dashboardTitle(organizationType?: string, globalRole?: string) {
-  if (globalRole === "super_admin") return "Dashboard Master Super Admin";
-  if (organizationType === "agency") return "Dashboard Master Agence";
-  if (organizationType === "real_estate_agent") return "Dashboard Master Agent";
-  return "Dashboard Master Propriétaire";
+  return "Tableau de bord";
 }
 
 export function DashboardOverview() {
@@ -151,11 +148,7 @@ export function DashboardOverview() {
       <Card className="border-sobaya-primary/15 bg-sobaya-soft/30">
         <div className="grid gap-4 lg:grid-cols-[1fr_420px] lg:items-center">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xl font-semibold">{dashboardTitle(organization?.type, profile?.globalRole)}</p>
-              <StatusBadge tone={stats.unpaidBalance || stats.urgentTickets.length ? "warning" : "success"}>Vue simplifiée</StatusBadge>
-            </div>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-sobaya-muted">Un tableau de bord plus léger : priorités immédiates, finances, patrimoine et activité récente. Les détails restent disponibles dans les sections repliables et les cartes actionnables.</p>
+            <p className="text-xl font-semibold">{dashboardTitle(organization?.type, profile?.globalRole)}</p>
           </div>
           <GlobalSearch />
         </div>
@@ -207,17 +200,11 @@ export function DashboardOverview() {
       </div>
 
       <Card>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-lg font-medium">Préparation UX globale V1</p>
-            <p className="mt-2 text-sm leading-6 text-sobaya-muted">Le dashboard est maintenant organisé pour l’audit écran par écran : menu hiérarchique, recherche, blocs repliables, cartes actionnables et parcours mobile.</p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-wrap gap-3">
             <ButtonLink href="/rapports" variant="secondary"><FileText size={16} /> Rapports</ButtonLink>
             <ButtonLink href="/notifications" variant="secondary"><ReceiptText size={16} /> Notifications</ButtonLink>
             <ButtonLink href="/interventions" variant="secondary"><CalendarClock size={16} /> Interventions</ButtonLink>
           </div>
-        </div>
       </Card>
     </div>
   );

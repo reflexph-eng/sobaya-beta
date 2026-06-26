@@ -1,5 +1,7 @@
 "use client";
 
+import { usePlatformSettings, PLATFORM_DEFAULTS } from "@/services/platform-settings";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CreditCard, MessageCircle, Phone, RefreshCw, Search } from "lucide-react";
@@ -30,10 +32,16 @@ function normalizePhone(phone?: string) {
   return `225${digits}`;
 }
 
-function reminderMessage(situation: RentSituation, tenant?: Tenant) {
+function reminderMessage(situation: RentSituation, tenant?: Tenant, template?: string) {
   const dueLabels = situation.dueMonths.slice(0, 4).map((month) => month.label).join(", ");
   const suffix = situation.dueMonths.length > 4 ? ` et ${situation.dueMonths.length - 4} autre(s) mois` : "";
-  return `Bonjour ${tenant?.fullName ?? situation.tenantName}, sauf erreur, votre loyer présente un retard de ${situation.dueMonths.length} mois (${dueLabels}${suffix}) pour un montant total de ${money(situation.totalDue)}. Merci de régulariser votre situation. SOBAYA`;
+  const nom = tenant?.fullName ?? situation.tenantName ?? "locataire";
+  const baseTemplate = template || PLATFORM_DEFAULTS.arrearsMessageTemplate;
+  return baseTemplate
+    .replace("{nom}", nom)
+    .replace("{mois_count}", String(situation.dueMonths.length))
+    .replace("{mois_liste}", dueLabels + suffix)
+    .replace("{montant}", money(situation.totalDue));
 }
 
 function whatsappUrl(phone: string | undefined, message: string) {
@@ -64,6 +72,7 @@ export function ArrearsManager() {
   const searchParams = useSearchParams();
   const focusedContractId = searchParams.get("contractId");
   const { organization, firebaseUser, profile } = useAuth();
+  const { settings: ps } = usePlatformSettings();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -170,7 +179,7 @@ export function ArrearsManager() {
         ) : null}
 
         {rows.map((row) => {
-          const message = reminderMessage(row.situation, row.tenant);
+          const message = reminderMessage(row.situation, row.tenant, ps.arrearsMessageTemplate);
           const hasPhone = Boolean(normalizePhone(row.tenant?.phone));
           return (
             <Card key={row.situation.contractId}>

@@ -1,13 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { BrandLogo } from "@/components/layout/brand-logo";
+import { usePlatformSettings, PLATFORM_DEFAULTS } from "@/services/platform-settings";
 
 export function PublicHeader() {
+  const { settings } = usePlatformSettings();
+  const slogan = settings.headerSlogan || PLATFORM_DEFAULTS.headerSlogan;
+
   return (
     <header className="mx-auto flex w-full max-w-screen-xl items-center justify-between px-5 py-5">
       <div>
         <BrandLogo priority />
-        <p className="mt-1 text-xs text-sobaya-muted">Votre patrimoine. Sous contrôle.</p>
+        <p className="mt-1 text-xs text-sobaya-muted">{slogan}</p>
       </div>
       <div className="flex items-center gap-2">
         <Link href="/a-propos" className="hidden text-sm text-sobaya-muted hover:text-sobaya-ink sm:block">À propos</Link>

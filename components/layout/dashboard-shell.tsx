@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
-import { AlertTriangle, Archive, Award, BarChart3, Bell, Building2, CalendarRange, ChevronDown, ClipboardList, CreditCard, FileText, Hammer, Home, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Menu, MessageSquare, Search, Settings, Shield, UserCircle, UserCog, UserRoundCheck, Users, Wrench, X } from "lucide-react";
+import { AlertTriangle, Archive, Award, BarChart3, Bell, Building2, CalendarRange, ChevronDown, ClipboardList, CreditCard, ExternalLink, FileText, Globe, Hammer, Home, LayoutDashboard, LifeBuoy, LogOut, Megaphone, Menu, MessageSquare, Search, Settings, Shield, UserCircle, UserCog, UserRoundCheck, Users, Wrench, X } from "lucide-react";
 import { auth } from "@/lib/firebase/client";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useModules } from "@/components/providers/modules-provider";
@@ -22,45 +22,68 @@ type NavItem = { href: string; label: string; icon: React.ElementType; permissio
 type NavGroup = { label: string; icon: React.ElementType; items: NavItem[]; defaultOpen?: boolean };
 
 const navGroups: NavGroup[] = [
-  { label: "Tableau de bord", icon: LayoutDashboard, defaultOpen: true, items: [{ href: "/dashboard", label: "Vue générale", icon: LayoutDashboard, permission: null }] },
+  { label: "Tableau de bord", icon: LayoutDashboard, defaultOpen: true, items: [
+    { href: "/dashboard", label: "Vue générale", icon: LayoutDashboard, permission: null }
+  ]},
+
   { label: "Gestion locative", icon: Home, defaultOpen: true, items: [
     { href: "/biens", label: "Biens", icon: Home, permission: PERMISSIONS.PROPERTIES_READ, module: "biens" },
     { href: "/proprietaires", label: "Propriétaires mandants", icon: UserRoundCheck, permission: PERMISSIONS.PROPERTIES_MANDANTS, module: "proprietaires" },
     { href: "/locataires", label: "Locataires", icon: Users, permission: PERMISSIONS.TENANTS_READ, module: "locataires" },
     { href: "/contrats", label: "Contrats", icon: FileText, permission: PERMISSIONS.CONTRACTS_READ, module: "contrats" },
     { href: "/reservations", label: "Réservations", icon: CalendarRange, permission: PERMISSIONS.BOOKINGS_READ, module: "reservations" }
-  ] },
+  ]},
+
   { label: "Finances", icon: CreditCard, defaultOpen: true, items: [
     { href: "/paiements", label: "Paiements", icon: CreditCard, permission: PERMISSIONS.PAYMENTS_MANAGE, module: "paiements" },
     { href: "/impayes", label: "Impayés & relances", icon: AlertTriangle, permission: PERMISSIONS.PAYMENTS_READ, module: "impayes" },
     { href: "/rapports", label: "Rapports", icon: BarChart3, permission: PERMISSIONS.PAYMENTS_READ, module: "rapports" },
     { href: "/marketplace-leads", label: "Demandes marketplace", icon: MessageSquare, permission: PERMISSIONS.PROPERTIES_READ, module: "marketplace_leads" }
-  ] },
+  ]},
+
   { label: "Exploitation", icon: Wrench, items: [
     { href: "/maintenance", label: "Maintenance", icon: Wrench, permission: PERMISSIONS.MAINTENANCE_MANAGE, module: "maintenance" },
     { href: "/prestataires", label: "Prestataires", icon: UserCog, permission: PERMISSIONS.MAINTENANCE_MANAGE, module: "prestataires" },
     { href: "/interventions", label: "Interventions", icon: Hammer, permission: PERMISSIONS.MAINTENANCE_MANAGE, module: "interventions" },
     { href: "/notifications", label: "Notifications", icon: Bell, permission: PERMISSIONS.NOTIFICATIONS_VIEW, module: "notifications" },
     { href: "/documents", label: "Documents", icon: Building2, permission: PERMISSIONS.DOCUMENTS_MANAGE, module: "documents" }
-  ] },
-  { label: "Administration", icon: Shield, items: [
-    { href: "/admin", label: "Administration", icon: Shield, permission: PERMISSIONS.ADMIN_ACCESS },
+  ]},
+
+  // ── ADMINISTRATION — 4 sous-groupes logiques ──────────────────────────────
+
+  { label: "Plateforme", icon: Shield, items: [
+    { href: "/admin", label: "Vue d'ensemble", icon: LayoutDashboard, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/organizations", label: "Organisations", icon: Building2, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/platform", label: "Plateforme", icon: BarChart3, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/settings", label: "Pilotage modules", icon: Settings, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/search", label: "Recherche admin", icon: Search, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/support", label: "Support", icon: LifeBuoy, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/pub", label: "Espaces pub", icon: Megaphone, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/about", label: "Page À propos", icon: FileText, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/badges", label: "Badges confiance", icon: Award, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/subscriptions", label: "Abonnements", icon: CreditCard, permission: PERMISSIONS.ADMIN_ACCESS },
     { href: "/admin/roles", label: "Rôles globaux", icon: Shield, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/settings", label: "Modules", icon: Settings, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/platform", label: "Statistiques", icon: BarChart3, permission: PERMISSIONS.ADMIN_ACCESS },
+  ]},
+
+  { label: "Contenu & Communication", icon: Megaphone, items: [
+    { href: "/admin/parametres-plateforme", label: "Paramètres plateforme", icon: Globe, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/about", label: "Page À propos", icon: FileText, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/marketplace-content", label: "Contenu marketplace", icon: Megaphone, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/legal", label: "Pages légales", icon: FileText, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/pub", label: "Espaces pub", icon: Award, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/badges", label: "Badges de confiance", icon: Award, permission: PERMISSIONS.ADMIN_ACCESS },
+  ]},
+
+  { label: "Outils admin", icon: Search, items: [
+    { href: "/admin/search", label: "Recherche globale", icon: Search, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/support", label: "Support", icon: LifeBuoy, permission: PERMISSIONS.ADMIN_ACCESS },
+  ]},
+
+  { label: "Journaux", icon: ClipboardList, items: [
     { href: "/admin/archives", label: "Archives", icon: Archive, permission: PERMISSIONS.ADMIN_ACCESS },
-    { href: "/admin/logs", label: "Journal", icon: ClipboardList, permission: PERMISSIONS.ADMIN_ACCESS },
-  ] },
+    { href: "/admin/logs", label: "Journal d'activité", icon: ClipboardList, permission: PERMISSIONS.ADMIN_ACCESS },
+    { href: "/admin/audit", label: "Audit", icon: Shield, permission: PERMISSIONS.ADMIN_ACCESS },
+  ]},
+
   { label: "Mon compte", icon: UserCircle, defaultOpen: true, items: [
     { href: "/organisation", label: "Paramètres", icon: Settings, permission: PERMISSIONS.SETTINGS_MANAGE },
     { href: "/profil", label: "Profil", icon: UserCircle, permission: null }
-  ] }
+  ]}
 ];
 
 function groupKey(label: string) {
@@ -169,7 +192,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <button type="button" onClick={() => setMobileMenuOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sobaya-border" aria-label="Fermer le menu"><X size={20} /></button>
             </div>
             <nav className="flex-1 overflow-y-auto px-4 py-4"><NavContent /></nav>
-            <div className="border-t border-sobaya-border p-4"><button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-red-700 transition hover:bg-red-50"><LogOut size={18} /> Déconnexion</button></div>
+            <div className="border-t border-sobaya-border p-4 space-y-1">
+              <Link href="/" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sobaya-muted transition hover:bg-sobaya-soft hover:text-sobaya-primary"><ExternalLink size={16} /> Voir la marketplace</Link>
+              <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-red-700 transition hover:bg-red-50"><LogOut size={18} /> Déconnexion</button>
+            </div>
           </aside>
         </div>
       ) : null}
@@ -181,7 +207,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <p className="mt-3 inline-flex rounded-full border border-sobaya-border px-3 py-1 text-xs text-sobaya-muted">{member?.role ?? "membre"}</p>
         </div>
         <nav className="flex-1 overflow-y-auto px-4 pb-4"><NavContent /></nav>
-        <div className="border-t border-sobaya-border p-4"><button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm text-sobaya-muted transition hover:bg-sobaya-soft hover:text-sobaya-ink"><LogOut size={18} /> Déconnexion</button></div>
+        <div className="border-t border-sobaya-border p-4 space-y-1">
+          <Link href="/" className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-sobaya-muted transition hover:bg-sobaya-soft hover:text-sobaya-primary"><ExternalLink size={16} /> Voir la marketplace</Link>
+          <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm text-sobaya-muted transition hover:bg-sobaya-soft hover:text-sobaya-ink"><LogOut size={18} /> Déconnexion</button>
+        </div>
       </aside>
       <main className="lg:ml-72">
         <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-5 sm:py-6 lg:py-8">{children}</div>

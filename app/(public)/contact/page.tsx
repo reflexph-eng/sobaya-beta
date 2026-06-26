@@ -1,5 +1,7 @@
 "use client";
 
+import { usePlatformSettings, PLATFORM_DEFAULTS } from "@/services/platform-settings";
+
 import { useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -18,6 +20,11 @@ const SUBJECTS = [
 ];
 
 export default function ContactPage() {
+  const { settings } = usePlatformSettings();
+  const psWhatsapp = settings.contactWhatsapp || PLATFORM_DEFAULTS.contactWhatsapp;
+  const psEmail = settings.contactEmail || PLATFORM_DEFAULTS.contactEmail;
+  const psAddress = settings.contactAddress || PLATFORM_DEFAULTS.contactAddress;
+  const psCompany = settings.contactCompanyName || PLATFORM_DEFAULTS.contactCompanyName;
   const [nom, setNom] = useState("");
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
@@ -75,27 +82,27 @@ export default function ContactPage() {
           {/* Infos contact */}
           <div className="space-y-5">
             <div className="rounded-2xl border border-sobaya-border p-6">
-              <p className="font-semibold text-sobaya-ink mb-4">Cabinet Grain de Sel</p>
+              <p className="font-semibold text-sobaya-ink mb-4">{psCompany}</p>
               <div className="space-y-4 text-sm">
                 <div className="flex items-start gap-3">
                   <MapPin size={18} className="mt-0.5 shrink-0 text-sobaya-primary" />
                   <div>
                     <p className="font-medium text-sobaya-ink">Adresse</p>
-                    <p className="text-sobaya-muted mt-0.5">Port-Bouët, Abidjan<br />Côte d&apos;Ivoire</p>
+                    <p className="text-sobaya-muted mt-0.5">{psAddress}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Mail size={18} className="mt-0.5 shrink-0 text-sobaya-primary" />
                   <div>
                     <p className="font-medium text-sobaya-ink">Email</p>
-                    <a href="mailto:contact@sobaya.ci" className="text-sobaya-primary hover:underline mt-0.5 block">contact@sobaya.ci</a>
+                    <a href={`mailto:${psEmail}`} className="text-sobaya-primary hover:underline mt-0.5 block">{psEmail}</a>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <MessageCircle size={18} className="mt-0.5 shrink-0 text-sobaya-primary" />
                   <div>
                     <p className="font-medium text-sobaya-ink">WhatsApp</p>
-                    <a href="https://wa.me/2250700000000" target="_blank" rel="noreferrer" className="text-sobaya-primary hover:underline mt-0.5 block">
+                    <a href={`https://wa.me/${psWhatsapp}`} target="_blank" rel="noreferrer" className="text-sobaya-primary hover:underline mt-0.5 block">
                       Écrire sur WhatsApp →
                     </a>
                   </div>
@@ -166,7 +173,7 @@ export default function ContactPage() {
                 </Button>
                 <p className="text-center text-xs text-sobaya-muted">
                   Ou écrivez-nous directement sur{" "}
-                  <a href="https://wa.me/2250700000000" target="_blank" rel="noreferrer" className="text-sobaya-primary underline">WhatsApp</a>
+                  <a href={`https://wa.me/${psWhatsapp}`} target="_blank" rel="noreferrer" className="text-sobaya-primary underline">WhatsApp</a>
                 </p>
               </form>
             )}

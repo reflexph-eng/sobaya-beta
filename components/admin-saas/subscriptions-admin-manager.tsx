@@ -20,8 +20,7 @@ export function SubscriptionsAdminManager() {
     try { await saveSubscriptionDraft({ organizationId: org.id, organizationName: org.name, plan, status: "trial" }); await load(); }
     finally { setBusyId(null); }
   }
-  return <SuperAdminGate><div className="space-y-5"><PageHeader title="Abonnements — préparation" description="Structure commerciale sans intégration paiement externe." />
-    <Card><div className="flex gap-3"><CreditCard className="mt-1 text-sobaya-muted" size={22}/><div><p className="font-medium">Préparation Sprint 13</p><p className="mt-1 text-sm text-sobaya-muted">Ces plans permettent de préparer les restrictions futures. Aucun paiement Orange Money, Wave, MTN ou CinetPay n’est déclenché ici.</p></div></div></Card>
+  return <SuperAdminGate><div className="space-y-5"><PageHeader title="Abonnements" description="Gestion des plans d'abonnement des organisations." />
     <div className="space-y-3">{organizations.map((org) => <Card key={org.id}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-medium">{org.name}</p><p className="mt-1 text-sm text-sobaya-muted">Plan actuel : {org.subscriptionPlan}</p></div><div className="flex flex-wrap gap-2"><StatusBadge>{org.subscriptionStatus}</StatusBadge><Button variant="secondary" disabled={busyId === org.id} onClick={() => setPlan(org, "starter")}>Starter</Button><Button variant="secondary" disabled={busyId === org.id} onClick={() => setPlan(org, "pro")}>Pro</Button><Button variant="secondary" disabled={busyId === org.id} onClick={() => setPlan(org, "agence")}>Agence</Button></div></div></Card>)}</div>
   </div></SuperAdminGate>;
 }
